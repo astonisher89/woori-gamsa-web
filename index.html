@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우리의 감사</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, orderBy
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import {
+    getAuth, signInWithEmailAndPassword, signOut
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+  // ⬇︎ Firebase 콘솔 > 프로젝트 설정 > 내 앱 > SDK 설정에서 복사한 값을 그대로 붙여넣어 주세요.
+  const firebaseConfig = {
+    apiKey: "AIzaSyB6Fr5Dsl7CqBJp_OTjwHn0PjXTnOh2DZ4",
+    authDomain: "byw-newlywed-note.firebaseapp.com",
+    projectId: "byw-newlywed-note",
+    storageBucket: "byw-newlywed-note.firebasestorage.app",
+    messagingSenderId: "130394814942",
+    appId: "1:130394814942:web:4eccce5cc0e5f1a31b854f"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  window.fb = {
+    async addEntry(data){
+      const ref = await addDoc(collection(db, 'entries'), data);
+      return ref.id;
+    },
+    async listEntries(){
+      const q = query(collection(db, 'entries'), orderBy('ts', 'asc'));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => Object.assign({ _key: d.id }, d.data()));
+    },
+    async findByEditCode(code){
+      const q = query(collection(db, 'entries'), where('editCode', '==', code));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => Object.assign({ _key: d.id }, d.data()));
+    },
+    async deleteEntry(id){
+      await deleteDoc(doc(db, 'entries', id));
+    },
+    async updateEntry(id, data){
+      await updateDoc(doc(db, 'entries', id), data);
+    },
+    async adminLogin(email, password){
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      return cred.user;
+    },
+    async adminLogout(){
+      await signOut(auth);
+    },
+    isAdminSignedIn(){
+      return !!auth.currentUser;
+    }
+  };
+  window.dispatchEvent(new Event('fbready'));
+</script>
+<style>
+  :root{
+    --paper:#F6F1E7;
+    --paper-card:#FFFDF8;
+    --ink:#2B2A25;
+    --ink-soft:#6B6558;
+    --line:#E4DCC9;
+    --accent:#2C4A68;
+    --accent-dark:#1D3448;
+    --motif:#8C6A3F;
+    --danger:#B3402E;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Noto Sans KR', sans-serif;
+    min-height:100vh;
+  }
+  h1,h2,h3{
+    font-family:'Noto Serif KR', serif;
+    font-weight:600;
+    margin:0;
+    color:var(--ink);
+  }
+  #app{max-width:960px;margin:0 auto;padding:20px 16px 60px;}
+  .topbar{
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 4px;
+    padding:14px 4px 22px;border-bottom:1px solid var(--line);margin-bottom:24px;
+  }
+  .brand{font-family:'Noto Serif KR', serif;font-weight:600;font-size:19px;color:var(--accent-dark);display:flex;align-items:center;gap:8px;}
+  .nav{display:flex;flex-wrap:wrap;gap:6px 14px;}
+  .nav-link{color:var(--ink-soft);text-decoration:none;font-size:14px;cursor:pointer;}
+  .nav-link:hover{color:var(--accent-dark);}
+  .card{
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:24px;
+  }
+  label{display:block;font-size:14px;color:var(--ink-soft);margin:18px 0 8px;}
+  label:first-of-type{margin-top:0;}
+  input[type=text], textarea{
+    width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;
+    font-family:inherit;font-size:15px;background:#fff;color:var(--ink);
+  }
+  input[type=text]:focus, textarea:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  textarea{resize:vertical;min-height:90px;line-height:1.6;}
+  .file-drop{
+    border:1.5px dashed var(--line);border-radius:10px;padding:18px;text-align:center;
+    cursor:pointer;background:#fff;
+  }
+  .file-drop input{display:none;}
+  .preview-img{width:100%;max-width:220px;border-radius:8px;margin-top:12px;display:block;}
+  .btn{
+    display:inline-block;border:none;border-radius:10px;padding:13px 22px;
+    font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;
+  }
+  .btn-primary{background:var(--accent);color:#fff;width:100%;margin-top:22px;}
+  .btn-primary:hover{background:var(--accent-dark);}
+  .btn-secondary{background:#fff;border:1px solid var(--line);color:var(--ink);}
+  .btn-danger{background:#fff;border:1px solid var(--danger);color:var(--danger);font-size:13px;padding:6px 12px;}
+  .error-text{color:var(--danger);font-size:13px;margin-top:6px;}
+  .hint{color:var(--ink-soft);font-size:13px;margin-top:6px;line-height:1.5;}
+
+  .success-wrap{text-align:center;}
+  .success-wrap p{color:var(--ink-soft);font-size:14px;line-height:1.6;}
+  .edit-code-box{
+    background:var(--paper);border:1.5px dashed var(--accent);border-radius:10px;
+    padding:14px;margin:16px 0;
+  }
+  .edit-code-box .label{font-size:13px;color:var(--ink-soft);}
+  .edit-code-box .code{font-size:32px;font-weight:700;letter-spacing:4px;color:var(--accent-dark);margin:4px 0;}
+  .edit-code-box .hint{font-size:12px;color:var(--ink-soft);}
+  .card-img{width:100%;max-width:320px;border-radius:10px;border:1px solid var(--line);margin:14px 0;}
+  .btn-row{display:flex;gap:10px;margin-top:16px;}
+  .btn-row .btn{flex:1;margin-top:0;}
+
+  .empty-state{
+    text-align:center;padding:60px 20px;color:var(--ink-soft);
+  }
+  .empty-state h3{color:var(--ink-soft);font-weight:500;margin-bottom:8px;}
+
+  .grid{display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;}
+  .tile{
+    background:var(--paper-card);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    cursor:pointer;
+  }
+  .tile img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}
+  .tile .tile-meta{padding:8px 10px;}
+  .tile .tile-meta .who{font-size:13px;font-weight:500;}
+  .tile .tile-meta .preview{
+    font-size:11px;color:var(--ink-soft);margin-top:3px;line-height:1.4;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(43,42,37,0.72);display:flex;
+    align-items:center;justify-content:center;padding:20px;z-index:50;
+  }
+  .modal-box{
+    background:var(--paper-card);border-radius:16px;max-width:420px;width:100%;
+    max-height:90vh;overflow-y:auto;
+  }
+  .modal-box img{width:100%;display:block;border-radius:16px 16px 0 0;}
+  .modal-body{padding:20px;}
+  .modal-body .who{font-weight:600;font-size:16px;margin-bottom:12px;}
+  .modal-body .msg{font-size:15px;line-height:1.7;white-space:pre-wrap;}
+  .modal-close{
+    display:block;margin:14px auto 0;background:none;border:none;color:var(--ink-soft);
+    font-size:14px;cursor:pointer;
+  }
+
+  /* screen view */
+  .screen-page{
+    max-width:none;padding:0;height:100vh;overflow:hidden;
+    display:flex;flex-direction:column;
+  }
+  .screen-page > .topbar{
+    flex:0 0 auto;padding:8px 24px;margin-bottom:0;
+  }
+  .screen-page > .topbar .brand{font-size:15px;}
+  .screen-header{
+    flex:0 0 auto;padding:10px 48px 4px;text-align:center;
+  }
+  .screen-header .eyebrow{color:var(--ink);font-size:16px;}
+  #screenWallHeader.screen-header{padding-top:22px;padding-bottom:14px;}
+  #screenWallHeader.screen-header .eyebrow{font-size:18px;font-weight:600;color:var(--accent-dark);}
+  .screen-header h1{font-size:30px;}
+  .title-underline{width:52px;height:3px;background:var(--accent);margin:8px auto 0;border-radius:2px;}
+  .scripture{
+    max-width:560px;margin:8px auto 0;text-align:center;color:var(--ink-soft);
+    font-size:12px;line-height:1.55;
+  }
+  .verse-stage{position:relative;min-height:38px;}
+  .verse-stage .verse{
+    position:absolute;top:0;left:0;right:0;margin:0;opacity:0;
+  }
+  .verse-stage .verse.active{opacity:1;position:relative;}
+  @media (prefers-reduced-motion: no-preference){
+    .verse-stage .verse{transition:opacity .8s ease;}
+  }
+  .scripture .vnum{color:var(--motif);font-weight:600;font-size:10px;margin-right:4px;}
+  .scripture .ref{font-size:11px;color:var(--motif);margin-top:4px;display:block;}
+  .screen-top{
+    flex:0 0 auto;padding:6px 48px 2px;
+  }
+  .order-panel{
+    display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  }
+  .order-step{
+    flex:1;min-width:110px;padding:8px 8px;text-align:center;border-right:1px solid var(--line);
+  }
+  .order-step:last-child{border-right:none;}
+  .order-step:nth-child(odd){background:var(--paper-card);}
+  .order-step:nth-child(even){background:#FBF3E3;}
+  .order-num{
+    width:20px;height:20px;border-radius:50%;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;
+    margin:0 auto 6px;
+  }
+  .order-step .icon{width:20px;height:20px;margin:0 auto 6px;color:var(--ink);}
+  .order-step .icon svg{width:100%;height:100%;}
+  .order-step .step-title{font-size:13px;font-weight:600;margin-bottom:3px;}
+  .order-step .step-desc{font-size:10px;color:var(--ink-soft);line-height:1.35;white-space:pre-line;}
+  .step-qr{margin-top:6px;display:flex;justify-content:center;}
+  .step-qr #qrcodeBox{background:#fff;padding:4px;border-radius:6px;display:inline-block;}
+  .photowall-wrap{
+    flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;
+    padding:2px 16px 6px;overflow:hidden;width:100%;
+  }
+  .marquee-wrap{position:relative;width:100%;overflow:hidden;}
+  .marquee-track{display:flex;height:100%;will-change:transform;}
+  .marquee-group{display:flex;gap:14px;padding-right:14px;height:100%;flex-shrink:0;}
+  .marquee-tile{height:100%;aspect-ratio:1/1;border-radius:12px;overflow:hidden;flex-shrink:0;}
+  .marquee-tile img{width:100%;height:100%;object-fit:cover;display:block;}
+  @media (prefers-reduced-motion: no-preference){
+    .marquee-tile.arrive{animation:tilepop .5s cubic-bezier(.34,1.56,.64,1);}
+  }
+  @keyframes tilepop{from{opacity:0;transform:scale(.6);}to{opacity:1;transform:scale(1);}}
+
+  /* admin */
+  .admin-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:12px 0;border-bottom:1px solid var(--line);
+  }
+  .admin-row:last-child{border-bottom:none;}
+  .admin-row img{width:52px;height:52px;object-fit:cover;border-radius:6px;flex-shrink:0;}
+  .admin-row .info{flex:1;min-width:0;}
+  .admin-row .info .who{font-size:14px;font-weight:500;}
+  .admin-row .info .msg{font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stat-line{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+  .stat-pill{background:#fff;border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:13px;color:var(--ink-soft);}
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:11px 20px;border-radius:8px;font-size:14px;
+    z-index:100;opacity:0;transition:opacity .25s;
+  }
+  .toast.show{opacity:1;}
+  .loading{text-align:center;color:var(--ink-soft);padding:60px 0;}
+
+  @media (max-width: 700px){
+    #app{padding:14px 12px 40px;}
+    .card{padding:18px;}
+    .order-panel{flex-wrap:wrap;}
+    .order-step{flex:1 1 50%;min-width:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+    .order-step:nth-child(2n){border-right:none;}
+    .order-step:nth-last-child(-n+2){border-bottom:none;}
+    .screen-header{padding-left:16px;padding-right:16px;}
+    .screen-header h1{font-size:22px;gap:8px;}
+    .screen-top{padding-left:16px;padding-right:16px;}
+    .scripture{font-size:11px;}
+    .grid{gap:8px;}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+let entryCache = {}; // key -> entry data
+let currentPhotoDataUrl = null;
+const mySubmissions = new Set(); // 이번 세션에서 내가 올린 글의 key
+let pollTimer = null;
+let marqueeRaf = null;
+let scriptureTimer = null;
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._tm);
+  showToast._tm = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
+function stopMarquee(){ if(marqueeRaf){ cancelAnimationFrame(marqueeRaf); marqueeRaf=null; } }
+function stopScripture(){ if(scriptureTimer){ clearInterval(scriptureTimer); scriptureTimer=null; } }
+
+function dataUrlToBase64(dataUrl){
+  const idx = dataUrl.indexOf(',');
+  return idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl;
+}
+function triggerDownload(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 4000);
+}
+async function downloadSingleCard(entry){
+  try{
+    const dataUrl = await drawPersonalCard(entry);
+    const safeName = (entry.coupleName || 'entry').replace(/[\\/:*?"<>|]/g, '_');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `감사카드_${safeName}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }catch(e){
+    showToast('카드 다운로드에 실패했어요.');
+  }
+}
+async function downloadAllPhotos(){
+  const all = (await fetchAllEntries()).sort((a,b)=>a.ts-b.ts);
+  if(all.length === 0){ showToast('다운로드할 사진이 없어요.'); return; }
+  try{
+    const zip = new JSZip();
+    all.forEach((e, i)=>{
+      const safeName = (e.coupleName || 'entry').replace(/[\\/:*?"<>|]/g, '_');
+      zip.file(`${String(i+1).padStart(2,'0')}_${safeName}.jpg`, dataUrlToBase64(e.photo), { base64: true });
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    triggerDownload(blob, '감사사진_전체.zip');
+  }catch(e){
+    showToast('사진 압축에 실패했어요. 다시 시도해주세요.');
+  }
+}
+async function downloadAllCards(){
+  const all = (await fetchAllEntries()).sort((a,b)=>a.ts-b.ts);
+  if(all.length === 0){ showToast('다운로드할 카드가 없어요.'); return; }
+  try{
+    const zip = new JSZip();
+    for(let i=0;i<all.length;i++){
+      const e = all[i];
+      const safeName = (e.coupleName || 'entry').replace(/[\\/:*?"<>|]/g, '_');
+      try{
+        const dataUrl = await drawPersonalCard(e);
+        zip.file(`${String(i+1).padStart(2,'0')}_${safeName}_카드.png`, dataUrlToBase64(dataUrl), { base64: true });
+      }catch(err){ /* 카드 하나 실패 시 건너뜀 */ }
+    }
+    const blob = await zip.generateAsync({ type: 'blob' });
+    triggerDownload(blob, '감사카드_전체.zip');
+  }catch(e){
+    showToast('카드 압축에 실패했어요. 다시 시도해주세요.');
+  }
+}
+
+async function fetchAllEntries(){
+  try{
+    const list = await window.fb.listEntries();
+    entryCache = {};
+    list.forEach(e => { entryCache[e._key] = e; });
+    return list;
+  }catch(e){
+    return Object.values(entryCache).sort((a,b)=>a.ts-b.ts);
+  }
+}
+
+function compressImage(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read fail'));
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('img fail'));
+      img.onload = () => {
+        const maxDim = 1000;
+        let w = img.width, h = img.height;
+        if(w >= h && w > maxDim){ h = Math.round(h*maxDim/w); w = maxDim; }
+        else if(h > w && h > maxDim){ w = Math.round(w*maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight){
+  const chars = text.split('');
+  let line = '';
+  let curY = y;
+  for(let i=0;i<chars.length;i++){
+    const test = line + chars[i];
+    if(ctx.measureText(test).width > maxWidth && line){
+      ctx.fillText(line, x, curY);
+      line = chars[i];
+      curY += lineHeight;
+    } else { line = test; }
+  }
+  ctx.fillText(line, x, curY);
+  return curY + lineHeight;
+}
+
+async function drawPersonalCard(entry){
+  await document.fonts.ready;
+  return new Promise((resolve)=>{
+    const W = 900, H = 1260;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#F6F1E7';
+    ctx.fillRect(0,0,W,H);
+    const img = new Image();
+    img.onload = () => {
+      const pad = 60;
+      const photoSize = W - pad*2;
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side)/2, sy = (img.height - side)/2;
+      ctx.drawImage(img, sx, sy, side, side, pad, pad, photoSize, photoSize);
+      ctx.strokeStyle = '#2C4A68';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(pad, pad, photoSize, photoSize);
+
+      ctx.fillStyle = '#2C4A68';
+      ctx.font = '600 34px "Noto Serif KR", serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('우리의 감사', pad, pad + photoSize + 56);
+
+      ctx.fillStyle = '#2C4A68';
+      ctx.fillRect(pad, pad + photoSize + 70, 48, 3);
+
+      ctx.fillStyle = '#8C6A3F';
+      ctx.font = '400 20px "Noto Sans KR", sans-serif';
+      const dateLabel = new Date(entry.ts).toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
+      ctx.fillText(dateLabel, pad, pad + photoSize + 100);
+
+      ctx.fillStyle = '#2B2A25';
+      ctx.font = '500 27px "Noto Sans KR", sans-serif';
+      ctx.fillText(entry.coupleName, pad, pad + photoSize + 142);
+
+      ctx.font = '400 23px "Noto Sans KR", sans-serif';
+      wrapText(ctx, entry.message, pad, pad + photoSize + 182, W - pad*2, 33);
+
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = entry.photo;
+  });
+}
+
+const ARMOR_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8C6A3F" stroke-width="1.6" style="flex-shrink:0;"><path d="M12 3l7 3v6c0 5-3.2 7.8-7 9-3.8-1.2-7-4-7-9V6l7-3z"/><line x1="12" y1="3" x2="12" y2="21"/></svg>';
+
+function currentView(){
+  const h = location.hash.replace('#','');
+  return h || 'screen';
+}
+function goTo(view){ location.hash = view; }
+window.addEventListener('hashchange', render);
+
+async function render(){
+  stopPoll();
+  stopMarquee();
+  stopScripture();
+  const view = currentView();
+  const root = document.getElementById('app');
+  root.style.transition = 'opacity .15s ease';
+  root.style.opacity = '0';
+  await new Promise(r => setTimeout(r, 140));
+  if(view === 'screen'){
+    root.className = 'screen-page';
+  } else {
+    root.className = '';
+  }
+  root.innerHTML = '<div class="loading">불러오는 중...</div>';
+  if(view === 'screen') await renderScreen(root);
+  else if(view === 'gallery') await renderGallery(root);
+  else if(view === 'admin') await renderAdmin(root);
+  else if(view === 'find') await renderFindForm(root);
+  else await renderSubmit(root);
+  requestAnimationFrame(()=>{ root.style.opacity = '1'; });
+}
+
+const NAV_ITEMS = [
+  { view:'screen', label:'홈' },
+  { view:'submit', label:'감사제출' },
+  { view:'gallery', label:'갤러리' },
+  { view:'admin', label:'관리자' }
+];
+function navLinks(){
+  return NAV_ITEMS.map(item => `<span class="nav-link" onclick="goTo('${item.view}')">${item.label}</span>`).join('');
+}
+function topbar(){
+  return `<div class="topbar">
+    <div class="brand">${ARMOR_ICON}<span>우리의 감사</span></div>
+    <div class="nav">${navLinks()}</div>
+  </div>`;
+}
+
+// ---------- SUBMIT VIEW ----------
+async function renderSubmit(root){
+  root.innerHTML = `
+    ${topbar()}
+    <div class="card">
+      <label for="coupleName">부부</label>
+      <input type="text" id="coupleName" maxlength="30" placeholder="예: 영채 슬기 부부">
+
+      <label>감사했던 순간 사진</label>
+      <div class="file-drop" id="fileDrop">
+        <span id="fileDropLabel">탭해서 사진첩에서 선택하기</span>
+        <input type="file" id="photoInput" accept="image/*">
+        <img id="photoPreview" class="preview-img" style="display:none;">
+      </div>
+
+      <label for="message">어떤 감사였는지 들려주세요</label>
+      <textarea id="message" maxlength="200" placeholder="그 사진 속 순간, 우리 부부에게 어떤 감사가 있었나요?"></textarea>
+      <div class="hint">최대 200자</div>
+
+      <div id="formError" class="error-text" style="display:none;"></div>
+      <button class="btn btn-primary" id="submitBtn">감사 나누기</button>
+    </div>
+    <div style="text-align:center;margin-top:16px;">
+      <span class="nav-link" onclick="goTo('find')" style="font-size:13px;">이미 제출했는데 수정하고 싶으신가요? 코드로 찾기</span>
+    </div>
+  `;
+
+  const fileDrop = root.querySelector('#fileDrop');
+  const photoInput = root.querySelector('#photoInput');
+  fileDrop.addEventListener('click', ()=> photoInput.click());
+  photoInput.addEventListener('change', async ()=>{
+    const file = photoInput.files[0];
+    if(!file) return;
+    root.querySelector('#fileDropLabel').textContent = '사진을 불러오는 중...';
+    try{
+      currentPhotoDataUrl = await compressImage(file);
+      const preview = root.querySelector('#photoPreview');
+      preview.src = currentPhotoDataUrl;
+      preview.style.display = 'block';
+      root.querySelector('#fileDropLabel').textContent = '다른 사진으로 바꾸기';
+    }catch(e){
+      showToast('사진을 불러오지 못했어요. 다시 시도해주세요.');
+      root.querySelector('#fileDropLabel').textContent = '탭해서 사진첩에서 선택하기';
+    }
+  });
+
+  root.querySelector('#submitBtn').addEventListener('click', async ()=>{
+    const errBox = root.querySelector('#formError');
+    errBox.style.display = 'none';
+    const coupleName = root.querySelector('#coupleName').value.trim();
+    const message = root.querySelector('#message').value.trim();
+    if(!coupleName){ errBox.textContent='부부(조) 이름을 입력해주세요.'; errBox.style.display='block'; return; }
+    if(!currentPhotoDataUrl){ errBox.textContent='사진을 선택해주세요.'; errBox.style.display='block'; return; }
+    if(!message){ errBox.textContent='감사 내용을 적어주세요.'; errBox.style.display='block'; return; }
+
+    const btn = root.querySelector('#submitBtn');
+    btn.disabled = true;
+    btn.textContent = '나누는 중...';
+
+    const entry = {
+      coupleName,
+      message,
+      photo: currentPhotoDataUrl,
+      ts: Date.now(),
+      editCode: String(Math.floor(1000 + Math.random() * 9000))
+    };
+    try{
+      const docId = await window.fb.addEntry(entry);
+      entry._key = docId;
+      entryCache[docId] = entry;
+      mySubmissions.add(docId);
+      await renderSuccess(root, entry);
+    }catch(e){
+      errBox.textContent = '나눔 저장에 실패했어요. 다시 시도해주세요.';
+      errBox.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '감사 나누기';
+    }
+  });
+}
+
+async function renderSuccess(root, entry, isEdit){
+  root.innerHTML = `
+    ${topbar()}
+    <div class="card success-wrap">
+      <h2>${isEdit ? '수정 내용이 저장됐어요' : '감사가 나눔 노트에 담겼어요'}</h2>
+      <p>우리 부부만의 감사 카드가 완성됐어요. 이미지를 저장해서 소장해보세요.</p>
+      ${entry.editCode ? `<div class="edit-code-box"><div class="label">나중에 수정할 때 필요한 코드</div><div class="code">${esc(entry.editCode)}</div><div class="hint">꼭 기억해두거나 캡처해두세요. 다른 폰에서도 이 코드로 수정할 수 있어요.</div></div>` : ''}
+      <div class="loading" id="cardLoading">카드를 만드는 중...</div>
+      <img id="cardImg" class="card-img" style="display:none;">
+      <div class="btn-row">
+        <a class="btn btn-secondary" id="downloadBtn" style="display:none;text-decoration:none;text-align:center;">이미지로 저장</a>
+        <button class="btn btn-secondary" id="editBtn">수정하기</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="againBtn">다른 조 작성하기</button>
+        <button class="btn btn-primary" onclick="goTo('gallery')">갤러리에서 모두 보기</button>
+      </div>
+    </div>
+  `;
+  try{
+    const dataUrl = await drawPersonalCard(entry);
+    const img = root.querySelector('#cardImg');
+    img.src = dataUrl;
+    img.style.display = 'block';
+    root.querySelector('#cardLoading').style.display = 'none';
+    const dl = root.querySelector('#downloadBtn');
+    dl.href = dataUrl;
+    const safeName = entry.coupleName.replace(/[\\/:*?"<>|]/g,'_');
+    dl.download = `감사노트_${safeName}.png`;
+    dl.style.display = 'block';
+  }catch(e){
+    root.querySelector('#cardLoading').textContent = '카드를 만드는 데 실패했어요. 갤러리에서 사진은 확인하실 수 있어요.';
+  }
+  root.querySelector('#editBtn').addEventListener('click', ()=>{
+    currentPhotoDataUrl = entry.photo;
+    renderEditForm(root, entry);
+  });
+  root.querySelector('#againBtn').addEventListener('click', ()=>{
+    currentPhotoDataUrl = null;
+    renderSubmit(root);
+  });
+}
+
+async function renderFindForm(root){
+  root.innerHTML = `
+    ${topbar()}
+    <div class="card">
+      <h2 style="margin-bottom:14px;">수정 코드로 내 글 찾기</h2>
+      <label for="findCode">수정 코드 (4자리)</label>
+      <input type="text" id="findCode" maxlength="4" inputmode="numeric" placeholder="예: 1234">
+      <div id="findError" class="error-text" style="display:none;"></div>
+      <button class="btn btn-primary" id="findBtn">찾기</button>
+    </div>
+  `;
+  root.querySelector('#findBtn').addEventListener('click', async ()=>{
+    const errBox = root.querySelector('#findError');
+    errBox.style.display = 'none';
+    const code = root.querySelector('#findCode').value.trim();
+    if(!/^\d{4}$/.test(code)){ errBox.textContent = '4자리 숫자 코드를 입력해주세요.'; errBox.style.display = 'block'; return; }
+
+    const btn = root.querySelector('#findBtn');
+    btn.disabled = true;
+    btn.textContent = '찾는 중...';
+    try{
+      const matches = await window.fb.findByEditCode(code);
+      if(matches.length === 0){
+        errBox.textContent = '해당 코드로 등록된 글을 찾지 못했어요. 코드를 다시 확인해주세요.';
+        errBox.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '찾기';
+      } else if(matches.length === 1){
+        currentPhotoDataUrl = matches[0].photo;
+        entryCache[matches[0]._key] = matches[0];
+        mySubmissions.add(matches[0]._key);
+        renderEditForm(root, matches[0]);
+      } else {
+        root.querySelector('.card').innerHTML = `
+          <h2 style="margin-bottom:14px;">여러 글이 있어요, 수정할 글을 골라주세요</h2>
+          ${matches.map(m => `<div class="admin-row" data-key="${m._key}" style="cursor:pointer;">
+            <img src="${m.photo}" alt="">
+            <div class="info"><div class="who">${esc(m.coupleName)}</div><div class="msg">${esc(m.message)}</div></div>
+          </div>`).join('')}
+        `;
+        root.querySelectorAll('[data-key]').forEach(row=>{
+          row.addEventListener('click', ()=>{
+            const m = matches.find(x=>x._key === row.dataset.key);
+            currentPhotoDataUrl = m.photo;
+            entryCache[m._key] = m;
+            mySubmissions.add(m._key);
+            renderEditForm(root, m);
+          });
+        });
+      }
+    }catch(e){
+      errBox.textContent = '조회에 실패했어요. 다시 시도해주세요.';
+      errBox.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '찾기';
+    }
+  });
+}
+
+async function renderEditForm(root, entry){
+  root.innerHTML = `
+    ${topbar()}
+    <div class="card">
+      <h2 style="margin-bottom:14px;">감사 나눔 수정</h2>
+      <label for="coupleName">부부</label>
+      <input type="text" id="coupleName" maxlength="30" value="${esc(entry.coupleName)}">
+
+      <label>감사했던 순간 사진</label>
+      <div class="file-drop" id="fileDrop">
+        <span id="fileDropLabel">다른 사진으로 바꾸기</span>
+        <input type="file" id="photoInput" accept="image/*">
+        <img id="photoPreview" class="preview-img" src="${entry.photo}" style="display:block;">
+      </div>
+
+      <label for="message">어떤 감사였는지 들려주세요</label>
+      <textarea id="message" maxlength="200">${esc(entry.message)}</textarea>
+      <div class="hint">최대 200자</div>
+
+      <div id="formError" class="error-text" style="display:none;"></div>
+      <button class="btn btn-primary" id="submitBtn">수정 완료</button>
+    </div>
+  `;
+
+  const fileDrop = root.querySelector('#fileDrop');
+  const photoInput = root.querySelector('#photoInput');
+  fileDrop.addEventListener('click', ()=> photoInput.click());
+  photoInput.addEventListener('change', async ()=>{
+    const file = photoInput.files[0];
+    if(!file) return;
+    root.querySelector('#fileDropLabel').textContent = '사진을 불러오는 중...';
+    try{
+      currentPhotoDataUrl = await compressImage(file);
+      const preview = root.querySelector('#photoPreview');
+      preview.src = currentPhotoDataUrl;
+      preview.style.display = 'block';
+      root.querySelector('#fileDropLabel').textContent = '다른 사진으로 바꾸기';
+    }catch(e){
+      showToast('사진을 불러오지 못했어요. 다시 시도해주세요.');
+    }
+  });
+
+  root.querySelector('#submitBtn').addEventListener('click', async ()=>{
+    const errBox = root.querySelector('#formError');
+    errBox.style.display = 'none';
+    const coupleName = root.querySelector('#coupleName').value.trim();
+    const message = root.querySelector('#message').value.trim();
+    if(!coupleName){ errBox.textContent='부부(조) 이름을 입력해주세요.'; errBox.style.display='block'; return; }
+    if(!currentPhotoDataUrl){ errBox.textContent='사진을 선택해주세요.'; errBox.style.display='block'; return; }
+    if(!message){ errBox.textContent='감사 내용을 적어주세요.'; errBox.style.display='block'; return; }
+
+    const btn = root.querySelector('#submitBtn');
+    btn.disabled = true;
+    btn.textContent = '수정하는 중...';
+
+    const updated = { coupleName, message, photo: currentPhotoDataUrl, ts: entry.ts, editCode: entry.editCode };
+    try{
+      await window.fb.updateEntry(entry._key, updated);
+      updated._key = entry._key;
+      entryCache[entry._key] = updated;
+      mySubmissions.add(entry._key);
+      await renderSuccess(root, updated, true);
+    }catch(e){
+      errBox.textContent = '수정에 실패했어요. 다시 시도해주세요.';
+      errBox.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '수정 완료';
+    }
+  });
+}
+
+// ---------- SCREEN VIEW (title + scripture + order/QR + growing heart photo wall) ----------
+const PROGRAM_TITLE = '감사하는 마음';
+const SCRIPTURE_VERSES = [
+  { n: 12, text: '그러므로 너희는 하나님이 택하사 거룩하고 사랑받는 자처럼 긍휼과 자비와 겸손과 온유와 오래 참음을 옷 입고' },
+  { n: 13, text: '누가 누구에게 불만이 있거든 서로 용납하여 피차 용서하되 주께서 너희를 용서하신 것 같이 너희도 그리하고' },
+  { n: 14, text: '이 모든 것 위에 사랑을 더하라 이는 온전하게 매는 띠니라' },
+  { n: 15, text: '그리스도의 평강이 너희 마음을 주장하게 하라 이는 평강을 위하여 너희가 한 몸으로 부르심을 받았나니 너희는 또한 감사하는 자가 되라' }
+];
+const SCRIPTURE_REF = '골로새서 3:12-15';
+
+const ICONS = {
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>',
+  photo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>',
+  qr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="21"/><line x1="21" y1="14" x2="21" y2="21"/><line x1="17.5" y1="14" x2="17.5" y2="17.5"/><line x1="14" y1="17.5" x2="21" y2="17.5"/></svg>',
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.2" y1="10.8" x2="15.8" y2="7.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="16.8"/></svg>'
+};
+
+const ORDER_STEPS = [
+  { icon:'phone', title:'핸드폰 사진첩', desc:'스마트폰 사진첩을\n열어보세요' },
+  { icon:'photo', title:'감사 사진 찾기', desc:'사진을 보며 잊고 있었던\n감사의 순간을 찾아보세요' },
+  { icon:'qr',    title:'QR 스캔·업로드', desc:'화면의 QR코드를 스캔해서\n사진과 감사글을 올려주세요' },
+  { icon:'share', title:'감사 나눔', desc:'사진에 담긴 감사 스토리를\n나누어주세요', withQr:true }
+];
+
+
+
+
+async function renderScreen(root){
+  const submitUrl = location.origin + location.pathname + '#submit';
+
+  root.innerHTML = `
+    ${topbar()}
+    <div class="screen-header">
+      <h1 style="display:flex;align-items:center;justify-content:center;gap:12px;">${ARMOR_ICON.replace('width="20" height="20"','width="34" height="34"')}${esc(PROGRAM_TITLE)}</h1>
+      <div class="title-underline"></div>
+      <div class="scripture">
+        <div class="verse-stage">
+          ${SCRIPTURE_VERSES.map((v,i)=>`<p class="verse${i===0?' active':''}"><span class="vnum">${v.n}</span>${esc(v.text)}</p>`).join('')}
+        </div>
+        <span class="ref">${esc(SCRIPTURE_REF)}</span>
+      </div>
+    </div>
+    <div class="screen-top">
+      <div class="order-panel">
+        ${ORDER_STEPS.map((s,i)=>`
+          <div class="order-step">
+            <div class="order-num">${i+1}</div>
+            <div class="icon">${ICONS[s.icon]}</div>
+            <div class="step-title">${esc(s.title)}</div>
+            <div class="step-desc">${esc(s.desc)}</div>
+            ${s.withQr ? '<div class="step-qr"><div id="qrcodeBox"></div></div>' : ''}
+          </div>`).join('')}
+      </div>
+    </div>
+    <div id="screenWallHeader" class="screen-header" style="padding-top:6px;"></div>
+    <div class="photowall-wrap" id="wallWrap">
+      <div class="marquee-wrap" id="marqueeWrap">
+        <div class="marquee-track" id="marqueeTrack">
+          <div class="marquee-group" id="marqueeGroupA"></div>
+          <div class="marquee-group" id="marqueeGroupB"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  try{
+    new QRCode(document.getElementById('qrcodeBox'), {
+      text: submitUrl, width: 84, height: 84,
+      colorDark: '#2B2A25', colorLight: '#ffffff'
+    });
+  }catch(e){ /* QR 라이브러리 로드 실패 시 스텝 설명만 남음 */ }
+
+  const verseEls = root.querySelectorAll('.verse-stage .verse');
+  if(verseEls.length > 1){
+    let verseIdx = 0;
+    scriptureTimer = setInterval(()=>{
+      verseEls[verseIdx].classList.remove('active');
+      verseIdx = (verseIdx + 1) % verseEls.length;
+      verseEls[verseIdx].classList.add('active');
+    }, 4500);
+  }
+
+  const knownTiles = {};
+
+  async function drawWall(){
+    const list = (await fetchAllEntries()).sort((a,b)=>a.ts-b.ts);
+
+    const headerEl = document.getElementById('screenWallHeader');
+    const wrapEl = document.getElementById('wallWrap');
+    const marqueeWrapEl = document.getElementById('marqueeWrap');
+    const groupA = document.getElementById('marqueeGroupA');
+    const groupB = document.getElementById('marqueeGroupB');
+    if(!headerEl || !wrapEl || !marqueeWrapEl || !groupA || !groupB) return;
+
+    const availH = Math.max(80, wrapEl.clientHeight - 4);
+    marqueeWrapEl.style.height = availH + 'px';
+
+    if(list.length === 0){
+      headerEl.innerHTML = `<div class="eyebrow">아직 도착한 감사가 없어요</div>`;
+      groupA.innerHTML = '';
+      groupB.innerHTML = '';
+      Object.keys(knownTiles).forEach(k=>delete knownTiles[k]);
+      return;
+    }
+
+    headerEl.innerHTML = `<div class="eyebrow">지금까지 ${list.length}개의 감사가 도착했어요</div>`;
+
+    const seenKeys = new Set();
+    list.forEach(e=>{
+      seenKeys.add(e._key);
+      if(!knownTiles[e._key]){
+        const tileA = document.createElement('div');
+        tileA.className = 'marquee-tile arrive';
+        tileA.innerHTML = `<img src="${e.photo}" alt="">`;
+        const tileB = tileA.cloneNode(true);
+        groupA.appendChild(tileA);
+        groupB.appendChild(tileB);
+        knownTiles[e._key] = [tileA, tileB];
+        [tileA, tileB].forEach(t => t.addEventListener('animationend', ()=> t.classList.remove('arrive'), {once:true}));
+      }
+    });
+
+    Object.keys(knownTiles).forEach(k=>{
+      if(!seenKeys.has(k)){
+        knownTiles[k].forEach(t=>t.remove());
+        delete knownTiles[k];
+      }
+    });
+  }
+
+  await drawWall();
+  pollTimer = setInterval(drawWall, 5000);
+
+  const MARQUEE_SPEED = 45;
+  let marqueeOffset = 0;
+  let marqueeLastTs = null;
+  function marqueeStep(ts){
+    const trackEl = document.getElementById('marqueeTrack');
+    const groupEl = document.getElementById('marqueeGroupA');
+    if(trackEl && groupEl && groupEl.children.length > 0){
+      if(marqueeLastTs !== null){
+        const dt = (ts - marqueeLastTs) / 1000;
+        const groupWidth = groupEl.scrollWidth || 1;
+        marqueeOffset += MARQUEE_SPEED * dt;
+        if(marqueeOffset >= groupWidth) marqueeOffset -= groupWidth;
+        trackEl.style.transform = `translateX(${-marqueeOffset}px)`;
+      }
+      marqueeLastTs = ts;
+    } else {
+      marqueeLastTs = null;
+    }
+    marqueeRaf = requestAnimationFrame(marqueeStep);
+  }
+  marqueeRaf = requestAnimationFrame(marqueeStep);
+}
+
+// ---------- GALLERY VIEW (all rounds combined, instagram-style) ----------
+async function renderGallery(root){
+  async function draw(){
+    const all = await fetchAllEntries();
+    const list = all.sort((a,b)=>b.ts-a.ts);
+    let body;
+    if(list.length === 0){
+      body = `<div class="empty-state"><h3>아직 나눔이 없어요</h3><p>가장 먼저 감사를 나눠보세요.</p></div>`;
+    } else {
+      body = `<div class="grid">` + list.map(e => `
+        <div class="tile" data-key="${e._key}">
+          <img src="${e.photo}" alt="">
+          <div class="tile-meta">
+            <div class="who">${esc(e.coupleName)}</div>
+            <div class="preview">${esc(e.message)}</div>
+          </div>
+        </div>`).join('') + `</div>`;
+    }
+    root.innerHTML = `${topbar()}<h2 style="margin-bottom:12px;">분우 신혼부부 공동체 감사 나눔 노트</h2>
+      <div class="btn-row" style="margin-bottom:18px;">
+        <button class="btn btn-secondary" id="downloadPhotosBtn">사진만 다운로드</button>
+        <button class="btn btn-secondary" id="downloadCardsBtn">카드 다운로드</button>
+      </div>
+      ${body}`;
+    root.querySelectorAll('.tile').forEach(t=>{
+      t.addEventListener('click', ()=>{
+        const e = entryCache[t.dataset.key];
+        if(e) openModal(e);
+      });
+    });
+
+    const photosBtn = root.querySelector('#downloadPhotosBtn');
+    if(photosBtn) photosBtn.addEventListener('click', async ()=>{
+      photosBtn.disabled = true;
+      const orig = photosBtn.textContent;
+      photosBtn.textContent = '압축하는 중...';
+      await downloadAllPhotos();
+      photosBtn.disabled = false;
+      photosBtn.textContent = orig;
+    });
+
+    const cardsBtn = root.querySelector('#downloadCardsBtn');
+    if(cardsBtn) cardsBtn.addEventListener('click', async ()=>{
+      cardsBtn.disabled = true;
+      const orig = cardsBtn.textContent;
+      cardsBtn.textContent = '카드 만드는 중...';
+      await downloadAllCards();
+      cardsBtn.disabled = false;
+      cardsBtn.textContent = orig;
+    });
+  }
+  await draw();
+  pollTimer = setInterval(draw, 7000);
+}
+
+function openModal(entry){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const canEdit = mySubmissions.has(entry._key);
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <img src="${entry.photo}" alt="">
+      <div class="modal-body">
+        <div class="who">${esc(entry.coupleName)}</div>
+        <div class="msg">${esc(entry.message)}</div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn btn-secondary" id="modalCardBtn">카드 다운로드</button>
+          ${canEdit ? '<button class="btn btn-secondary" id="modalEditBtn">내용 수정</button>' : ''}
+        </div>
+        <button class="modal-close">닫기</button>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
+  overlay.querySelector('.modal-close').addEventListener('click', ()=> overlay.remove());
+  overlay.querySelector('#modalCardBtn').addEventListener('click', async (ev)=>{
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = '카드 만드는 중...';
+    await downloadSingleCard(entry);
+    btn.disabled = false;
+    btn.textContent = orig;
+  });
+  const editBtn = overlay.querySelector('#modalEditBtn');
+  if(editBtn) editBtn.addEventListener('click', ()=>{
+    overlay.remove();
+    history.replaceState(null, '', '#submit');
+    currentPhotoDataUrl = entry.photo;
+    renderEditForm(document.getElementById('app'), entry);
+  });
+  document.body.appendChild(overlay);
+}
+
+// ---------- ADMIN VIEW ----------
+async function renderAdmin(root){
+  if(!window.fb.isAdminSignedIn()){
+    root.innerHTML = `
+      ${topbar()}
+      <div class="card">
+        <h2 style="margin-bottom:14px;">운영자 로그인</h2>
+        <label for="adminEmail">이메일</label>
+        <input type="text" id="adminEmail" placeholder="admin@example.com">
+        <label for="adminPw">비밀번호</label>
+        <input type="text" id="adminPw" placeholder="비밀번호 입력">
+        <div id="pwErr" class="error-text" style="display:none;">로그인에 실패했어요. 이메일과 비밀번호를 확인해주세요.</div>
+        <button class="btn btn-primary" id="pwBtn">입장하기</button>
+      </div>`;
+    root.querySelector('#pwBtn').addEventListener('click', async ()=>{
+      const email = root.querySelector('#adminEmail').value.trim();
+      const pw = root.querySelector('#adminPw').value;
+      const errBox = root.querySelector('#pwErr');
+      errBox.style.display = 'none';
+      try{
+        await window.fb.adminLogin(email, pw);
+        renderAdmin(root);
+      }catch(e){
+        errBox.style.display = 'block';
+      }
+    });
+    return;
+  }
+
+  async function draw(){
+    const all = await fetchAllEntries();
+    const sorted = all.sort((a,b)=>b.ts-a.ts);
+
+    root.innerHTML = `
+      ${topbar()}
+      <div class="card">
+        <h2 style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+          전체 나눔 관리
+          <button class="btn-danger" id="logoutBtn" style="font-weight:400;">로그아웃</button>
+        </h2>
+        <div class="stat-line">
+          <div class="stat-pill">전체 ${all.length}개</div>
+        </div>
+        <div class="btn-row" style="margin-bottom:18px;">
+          <button class="btn btn-secondary" id="downloadPhotosBtn">사진만 다운로드</button>
+          <button class="btn btn-secondary" id="downloadCardsBtn">카드 다운로드</button>
+        </div>
+        <div id="entryList">
+          ${sorted.length === 0 ? '<div class="empty-state"><h3>아직 나눔이 없어요</h3></div>' :
+            sorted.map(e => `
+            <div class="admin-row" data-key="${e._key}">
+              <img src="${e.photo}" alt="">
+              <div class="info">
+                <div class="who">${esc(e.coupleName)}</div>
+                <div class="msg">${esc(e.message)}</div>
+              </div>
+              <button class="btn-danger" data-del="${e._key}">삭제</button>
+            </div>`).join('')}
+        </div>
+      </div>
+    `;
+
+    root.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const key = btn.dataset.del;
+        if(!confirm('이 나눔을 삭제할까요? 되돌릴 수 없어요.')) return;
+        try{
+          await window.fb.deleteEntry(key);
+          delete entryCache[key];
+          showToast('삭제했어요.');
+          draw();
+        }catch(e){
+          showToast('삭제에 실패했어요. 다시 시도해주세요.');
+        }
+      });
+    });
+
+    const photosBtn = root.querySelector('#downloadPhotosBtn');
+    if(photosBtn) photosBtn.addEventListener('click', async ()=>{
+      photosBtn.disabled = true;
+      const orig = photosBtn.textContent;
+      photosBtn.textContent = '압축하는 중...';
+      await downloadAllPhotos();
+      photosBtn.disabled = false;
+      photosBtn.textContent = orig;
+    });
+
+    const cardsBtn = root.querySelector('#downloadCardsBtn');
+    if(cardsBtn) cardsBtn.addEventListener('click', async ()=>{
+      cardsBtn.disabled = true;
+      const orig = cardsBtn.textContent;
+      cardsBtn.textContent = '카드 만드는 중...';
+      await downloadAllCards();
+      cardsBtn.disabled = false;
+      cardsBtn.textContent = orig;
+    });
+
+    const logoutBtn = root.querySelector('#logoutBtn');
+    if(logoutBtn) logoutBtn.addEventListener('click', async ()=>{
+      await window.fb.adminLogout();
+      renderAdmin(root);
+    });
+  }
+
+  await draw();
+  pollTimer = setInterval(draw, 6000);
+}
+
+if(window.fb){ render(); }
+else{ window.addEventListener('fbready', render, { once: true }); }
+</script>
+</body>
+</html>
