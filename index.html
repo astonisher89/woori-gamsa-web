@@ -101,6 +101,8 @@
   .brand{font-family:'Noto Serif KR', serif;font-weight:600;font-size:19px;color:var(--accent-dark);display:flex;align-items:center;gap:8px;}
   .nav{display:flex;flex-wrap:wrap;gap:6px 14px;}
   .nav-link{color:var(--ink-soft);text-decoration:none;font-size:14px;cursor:pointer;}
+  .mini-download-row{display:flex;gap:16px;justify-content:center;margin-top:18px;}
+  .mini-download-row .nav-link{font-size:12px;}
   .nav-link:hover{color:var(--accent-dark);}
   .card{
     background:var(--paper-card);
@@ -169,10 +171,17 @@
     align-items:center;justify-content:center;padding:20px;z-index:50;
   }
   .modal-box{
-    background:var(--paper-card);border-radius:16px;max-width:420px;width:100%;
+    position:relative;background:var(--paper-card);border-radius:16px;max-width:420px;width:100%;
     max-height:90vh;overflow-y:auto;
   }
   .modal-box img{width:100%;display:block;border-radius:16px 16px 0 0;}
+  .modal-icon-btn{
+    position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;
+    background:rgba(255,255,255,0.88);border:none;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;color:var(--ink);padding:0;
+  }
+  .modal-icon-btn:hover{background:#fff;}
+  .modal-icon-btn svg{width:16px;height:16px;}
   .modal-body{padding:20px;}
   .modal-body .who{font-weight:600;font-size:16px;margin-bottom:12px;}
   .modal-body .msg{font-size:15px;line-height:1.7;white-space:pre-wrap;}
@@ -945,12 +954,12 @@ async function renderGallery(root){
           </div>
         </div>`).join('') + `</div>`;
     }
-    root.innerHTML = `${topbar()}<h2 style="margin-bottom:12px;">분우 신혼부부 공동체 감사 나눔 노트</h2>
-      <div class="btn-row" style="margin-bottom:18px;">
-        <button class="btn btn-secondary" id="downloadPhotosBtn">사진만 다운로드</button>
-        <button class="btn btn-secondary" id="downloadCardsBtn">카드 다운로드</button>
-      </div>
-      ${body}`;
+    root.innerHTML = `${topbar()}<h2 style="margin-bottom:16px;">분우 신혼부부 공동체 감사 나눔 노트</h2>
+      ${body}
+      <div class="mini-download-row">
+        <span class="nav-link" id="downloadPhotosBtn">사진만 다운로드</span>
+        <span class="nav-link" id="downloadCardsBtn">카드 다운로드</span>
+      </div>`;
     root.querySelectorAll('.tile').forEach(t=>{
       t.addEventListener('click', ()=>{
         const e = entryCache[t.dataset.key];
@@ -989,13 +998,13 @@ function openModal(entry){
   overlay.innerHTML = `
     <div class="modal-box">
       <img src="${entry.photo}" alt="">
+      <button class="modal-icon-btn" id="modalCardBtn" title="카드 다운로드">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+      </button>
       <div class="modal-body">
         <div class="who">${esc(entry.coupleName)}</div>
         <div class="msg">${esc(entry.message)}</div>
-        <div class="btn-row" style="margin-top:14px;">
-          <button class="btn btn-secondary" id="modalCardBtn">카드 다운로드</button>
-          ${canEdit ? '<button class="btn btn-secondary" id="modalEditBtn">내용 수정</button>' : ''}
-        </div>
+        ${canEdit ? '<div class="btn-row" style="margin-top:14px;"><button class="btn btn-secondary" id="modalEditBtn">내용 수정</button></div>' : ''}
         <button class="modal-close">닫기</button>
       </div>
     </div>`;
@@ -1004,11 +1013,8 @@ function openModal(entry){
   overlay.querySelector('#modalCardBtn').addEventListener('click', async (ev)=>{
     const btn = ev.currentTarget;
     btn.disabled = true;
-    const orig = btn.textContent;
-    btn.textContent = '카드 만드는 중...';
     await downloadSingleCard(entry);
     btn.disabled = false;
-    btn.textContent = orig;
   });
   const editBtn = overlay.querySelector('#modalEditBtn');
   if(editBtn) editBtn.addEventListener('click', ()=>{
