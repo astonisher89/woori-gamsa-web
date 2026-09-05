@@ -195,8 +195,14 @@
   .modal-icon-btn:hover{background:#fff;}
   .modal-icon-btn svg{width:16px;height:16px;}
   .modal-body{padding:20px;}
-  .modal-body .who{font-weight:600;font-size:16px;margin-bottom:12px;}
-  .modal-body .msg{font-size:15px;line-height:1.7;white-space:pre-wrap;}
+  .modal-body .who{
+    font-family:'Noto Serif KR', serif;font-weight:600;font-size:18px;color:var(--accent-dark);
+    padding-bottom:10px;margin-bottom:14px;border-bottom:1px solid var(--line);
+  }
+  .modal-body .msg{
+    font-size:15px;line-height:1.75;white-space:pre-wrap;color:var(--ink);
+    border-left:3px solid var(--motif);padding-left:14px;
+  }
   .modal-close{
     display:block;margin:14px auto 0;background:none;border:none;color:var(--ink-soft);
     font-size:14px;cursor:pointer;
@@ -297,9 +303,9 @@
     .order-step{flex:1 1 50%;min-width:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px 6px;}
     .order-step:nth-child(2n){border-right:none;}
     .order-step:nth-last-child(-n+2){border-bottom:none;}
-    .order-step .step-desc{display:none;}
     .order-step .icon{width:18px;height:18px;margin-bottom:4px;}
     .order-num{width:16px;height:16px;font-size:10px;margin-bottom:4px;}
+    .step-qr{display:none;}
     .screen-page .topbar{padding:4px 16px;}
     .screen-header{padding-left:16px;padding-right:16px;padding-top:4px;padding-bottom:2px;}
     .screen-header h1{font-size:19px;gap:6px;}
