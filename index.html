@@ -610,6 +610,9 @@ async function renderSubmit(root){
         <input type="file" id="photoInput" accept="image/*">
         <img id="photoPreview" class="preview-img" style="display:none;">
       </div>
+      <div style="text-align:center;">
+        <span class="nav-link" id="recropBtn" style="font-size:12px;display:none;">사진 크기 다시 조정</span>
+      </div>
 
       <label for="message">어떤 감사였는지 들려주세요</label>
       <textarea id="message" maxlength="200" placeholder="그 사진 속 순간, 우리 부부에게 어떤 감사가 있었나요?"></textarea>
@@ -620,20 +623,31 @@ async function renderSubmit(root){
     </div>
   `;
 
+  let rawPhotoFile = null;
   const fileDrop = root.querySelector('#fileDrop');
   const photoInput = root.querySelector('#photoInput');
+  const recropBtn = root.querySelector('#recropBtn');
   fileDrop.addEventListener('click', ()=> photoInput.click());
   photoInput.addEventListener('change', ()=>{
     const file = photoInput.files[0];
     if(!file) return;
+    rawPhotoFile = file;
     openCropModal(file, (dataUrl)=>{
       currentPhotoDataUrl = dataUrl;
       const preview = root.querySelector('#photoPreview');
       preview.src = dataUrl;
       preview.style.display = 'block';
       root.querySelector('#fileDropLabel').textContent = '다른 사진으로 바꾸기';
+      recropBtn.style.display = 'inline';
     });
     photoInput.value = '';
+  });
+  recropBtn.addEventListener('click', ()=>{
+    if(!rawPhotoFile) return;
+    openCropModal(rawPhotoFile, (dataUrl)=>{
+      currentPhotoDataUrl = dataUrl;
+      root.querySelector('#photoPreview').src = dataUrl;
+    });
   });
 
   root.querySelector('#submitBtn').addEventListener('click', async ()=>{
@@ -787,6 +801,9 @@ async function renderEditForm(root, entry){
         <input type="file" id="photoInput" accept="image/*">
         <img id="photoPreview" class="preview-img" src="${entry.photo}" style="display:block;">
       </div>
+      <div style="text-align:center;">
+        <span class="nav-link" id="recropBtn" style="font-size:12px;display:none;">사진 크기 다시 조정</span>
+      </div>
 
       <label for="message">어떤 감사였는지 들려주세요</label>
       <textarea id="message" maxlength="200">${esc(entry.message)}</textarea>
@@ -810,20 +827,31 @@ async function renderEditForm(root, entry){
     }
   });
 
+  let rawPhotoFile = null;
   const fileDrop = root.querySelector('#fileDrop');
   const photoInput = root.querySelector('#photoInput');
+  const recropBtn = root.querySelector('#recropBtn');
   fileDrop.addEventListener('click', ()=> photoInput.click());
   photoInput.addEventListener('change', ()=>{
     const file = photoInput.files[0];
     if(!file) return;
+    rawPhotoFile = file;
     openCropModal(file, (dataUrl)=>{
       currentPhotoDataUrl = dataUrl;
       const preview = root.querySelector('#photoPreview');
       preview.src = dataUrl;
       preview.style.display = 'block';
       root.querySelector('#fileDropLabel').textContent = '다른 사진으로 바꾸기';
+      recropBtn.style.display = 'inline';
     });
     photoInput.value = '';
+  });
+  recropBtn.addEventListener('click', ()=>{
+    if(!rawPhotoFile) return;
+    openCropModal(rawPhotoFile, (dataUrl)=>{
+      currentPhotoDataUrl = dataUrl;
+      root.querySelector('#photoPreview').src = dataUrl;
+    });
   });
 
   root.querySelector('#submitBtn').addEventListener('click', async ()=>{
