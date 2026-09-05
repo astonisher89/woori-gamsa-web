@@ -1071,9 +1071,7 @@ async function renderGallery(root){
     root.innerHTML = `${topbar()}
       <h2 style="margin-bottom:16px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;">
         <span>분우 신혼부부 공동체 감사 나눔 노트</span>
-        <button class="icon-btn-small" id="goEditBtn" title="내 글 수정하기">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </button>
+        <span class="nav-link" id="goEditBtn" style="font-size:12px;flex-shrink:0;">수정하기</span>
       </h2>
       ${body}`;
     root.querySelector('#goEditBtn').addEventListener('click', ()=> goTo('find'));
