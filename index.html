@@ -282,13 +282,20 @@
     #app{padding:14px 12px 40px;}
     .card{padding:18px;}
     .order-panel{flex-wrap:wrap;}
-    .order-step{flex:1 1 50%;min-width:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+    .order-step{flex:1 1 50%;min-width:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px 6px;}
     .order-step:nth-child(2n){border-right:none;}
     .order-step:nth-last-child(-n+2){border-bottom:none;}
-    .screen-header{padding-left:16px;padding-right:16px;}
-    .screen-header h1{font-size:22px;gap:8px;}
-    .screen-top{padding-left:16px;padding-right:16px;}
-    .scripture{font-size:11px;}
+    .order-step .step-desc{display:none;}
+    .order-step .icon{width:18px;height:18px;margin-bottom:4px;}
+    .order-num{width:16px;height:16px;font-size:10px;margin-bottom:4px;}
+    .screen-page .topbar{padding:4px 16px;}
+    .screen-header{padding-left:16px;padding-right:16px;padding-top:4px;padding-bottom:2px;}
+    .screen-header h1{font-size:19px;gap:6px;}
+    .title-underline{margin:6px auto 0;}
+    .screen-page .scripture{display:none;}
+    .screen-top{padding:4px 16px 2px;}
+    #screenWallHeader.screen-header{padding-top:8px;padding-bottom:6px;}
+    #screenWallHeader.screen-header .eyebrow{font-size:15px;}
     .grid{gap:8px;}
   }
 </style>
@@ -547,12 +554,11 @@ async function renderSubmit(root){
 
       <div id="formError" class="error-text" style="display:none;"></div>
       <button class="btn btn-primary" id="submitBtn">감사 나누기</button>
-    </div>
-    <div style="text-align:center;margin-top:16px;">
-      <span class="nav-link" onclick="goTo('find')" style="font-size:13px;">이미 제출했는데 수정하고 싶으신가요? 코드로 찾기</span>
+      <button class="btn btn-secondary" id="goEditBtn" style="width:100%;margin-top:10px;">이미 올린 글 수정하기</button>
     </div>
   `;
 
+  root.querySelector('#goEditBtn').addEventListener('click', ()=> goTo('find'));
   const fileDrop = root.querySelector('#fileDrop');
   const photoInput = root.querySelector('#photoInput');
   fileDrop.addEventListener('click', ()=> photoInput.click());
@@ -1027,26 +1033,25 @@ function openModal(entry){
 }
 
 // ---------- ADMIN VIEW ----------
+const ADMIN_EMAIL = 'astonisher89@gmail.com';
+
 async function renderAdmin(root){
   if(!window.fb.isAdminSignedIn()){
     root.innerHTML = `
       ${topbar()}
       <div class="card">
         <h2 style="margin-bottom:14px;">운영자 로그인</h2>
-        <label for="adminEmail">이메일</label>
-        <input type="text" id="adminEmail" placeholder="admin@example.com">
         <label for="adminPw">비밀번호</label>
         <input type="text" id="adminPw" placeholder="비밀번호 입력">
-        <div id="pwErr" class="error-text" style="display:none;">로그인에 실패했어요. 이메일과 비밀번호를 확인해주세요.</div>
+        <div id="pwErr" class="error-text" style="display:none;">로그인에 실패했어요. 비밀번호를 확인해주세요.</div>
         <button class="btn btn-primary" id="pwBtn">입장하기</button>
       </div>`;
     root.querySelector('#pwBtn').addEventListener('click', async ()=>{
-      const email = root.querySelector('#adminEmail').value.trim();
       const pw = root.querySelector('#adminPw').value;
       const errBox = root.querySelector('#pwErr');
       errBox.style.display = 'none';
       try{
-        await window.fb.adminLogin(email, pw);
+        await window.fb.adminLogin(ADMIN_EMAIL, pw);
         renderAdmin(root);
       }catch(e){
         errBox.style.display = 'block';
