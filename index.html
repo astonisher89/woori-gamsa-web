@@ -9,6 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
@@ -123,7 +125,7 @@
     cursor:pointer;background:#fff;
   }
   .file-drop input{display:none;}
-  .preview-img{width:100%;max-width:220px;border-radius:8px;margin-top:12px;display:block;}
+  .preview-img{width:100%;max-width:220px;aspect-ratio:1/1;object-fit:cover;border-radius:8px;margin-top:12px;display:block;}
   .btn{
     display:inline-block;border:none;border-radius:10px;padding:13px 22px;
     font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;
@@ -170,11 +172,21 @@
     position:fixed;inset:0;background:rgba(43,42,37,0.72);display:flex;
     align-items:center;justify-content:center;padding:20px;z-index:50;
   }
+  .crop-overlay{
+    position:fixed;inset:0;background:rgba(43,42,37,0.88);display:flex;
+    align-items:center;justify-content:center;padding:20px;z-index:60;
+  }
+  .crop-box{
+    background:var(--paper-card);border-radius:14px;padding:18px;max-width:420px;width:100%;
+  }
+  .crop-box h3{font-family:'Noto Sans KR',sans-serif;font-size:15px;font-weight:500;color:var(--ink-soft);margin-bottom:12px;text-align:center;}
+  .crop-img-wrap{width:100%;height:320px;background:#1c1a17;border-radius:8px;overflow:hidden;}
+  .crop-img-wrap img{display:block;max-width:100%;}
   .modal-box{
     position:relative;background:var(--paper-card);border-radius:16px;max-width:420px;width:100%;
     max-height:90vh;overflow-y:auto;
   }
-  .modal-box img{width:100%;display:block;border-radius:16px 16px 0 0;}
+  .modal-box img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;border-radius:16px 16px 0 0;}
   .modal-icon-btn{
     position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;
     background:rgba(255,255,255,0.88);border:none;display:flex;align-items:center;justify-content:center;
@@ -400,6 +412,44 @@ async function fetchAllEntries(){
   }
 }
 
+function openCropModal(file, onCropped){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'crop-overlay';
+    overlay.innerHTML = `
+      <div class="crop-box">
+        <h3>정사각형 틀 안에서 원하는 부분을 드래그·확대해보세요</h3>
+        <div class="crop-img-wrap"><img id="cropImgEl" src="${e.target.result}"></div>
+        <div class="btn-row" style="margin-top:16px;">
+          <button class="btn btn-secondary" id="cropCancelBtn">취소</button>
+          <button class="btn btn-primary" id="cropDoneBtn">이대로 사용하기</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const imgEl = overlay.querySelector('#cropImgEl');
+    const cropper = new Cropper(imgEl, {
+      aspectRatio: 1,
+      viewMode: 1,
+      background: false,
+      autoCropArea: 1,
+      dragMode: 'move'
+    });
+    function closeOverlay(){
+      cropper.destroy();
+      overlay.remove();
+    }
+    overlay.querySelector('#cropCancelBtn').addEventListener('click', closeOverlay);
+    overlay.querySelector('#cropDoneBtn').addEventListener('click', ()=>{
+      const canvas = cropper.getCroppedCanvas({ width: 1000, height: 1000 });
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      closeOverlay();
+      onCropped(dataUrl);
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
 function compressImage(file){
   return new Promise((resolve, reject)=>{
     const reader = new FileReader();
@@ -554,28 +604,23 @@ async function renderSubmit(root){
 
       <div id="formError" class="error-text" style="display:none;"></div>
       <button class="btn btn-primary" id="submitBtn">감사 나누기</button>
-      <button class="btn btn-secondary" id="goEditBtn" style="width:100%;margin-top:10px;">이미 올린 글 수정하기</button>
     </div>
   `;
 
-  root.querySelector('#goEditBtn').addEventListener('click', ()=> goTo('find'));
   const fileDrop = root.querySelector('#fileDrop');
   const photoInput = root.querySelector('#photoInput');
   fileDrop.addEventListener('click', ()=> photoInput.click());
-  photoInput.addEventListener('change', async ()=>{
+  photoInput.addEventListener('change', ()=>{
     const file = photoInput.files[0];
     if(!file) return;
-    root.querySelector('#fileDropLabel').textContent = '사진을 불러오는 중...';
-    try{
-      currentPhotoDataUrl = await compressImage(file);
+    openCropModal(file, (dataUrl)=>{
+      currentPhotoDataUrl = dataUrl;
       const preview = root.querySelector('#photoPreview');
-      preview.src = currentPhotoDataUrl;
+      preview.src = dataUrl;
       preview.style.display = 'block';
       root.querySelector('#fileDropLabel').textContent = '다른 사진으로 바꾸기';
-    }catch(e){
-      showToast('사진을 불러오지 못했어요. 다시 시도해주세요.');
-      root.querySelector('#fileDropLabel').textContent = '탭해서 사진첩에서 선택하기';
-    }
+    });
+    photoInput.value = '';
   });
 
   root.querySelector('#submitBtn').addEventListener('click', async ()=>{
@@ -736,25 +781,36 @@ async function renderEditForm(root, entry){
 
       <div id="formError" class="error-text" style="display:none;"></div>
       <button class="btn btn-primary" id="submitBtn">수정 완료</button>
+      <button class="btn-danger" id="deleteBtn" style="width:100%;margin-top:10px;padding:12px 0;">이 나눔 삭제하기</button>
     </div>
   `;
+
+  root.querySelector('#deleteBtn').addEventListener('click', async ()=>{
+    if(!confirm('이 나눔을 삭제할까요? 되돌릴 수 없어요.')) return;
+    try{
+      await window.fb.deleteEntry(entry._key);
+      delete entryCache[entry._key];
+      showToast('삭제했어요.');
+      goTo('gallery');
+    }catch(e){
+      showToast('삭제에 실패했어요. 다시 시도해주세요.');
+    }
+  });
 
   const fileDrop = root.querySelector('#fileDrop');
   const photoInput = root.querySelector('#photoInput');
   fileDrop.addEventListener('click', ()=> photoInput.click());
-  photoInput.addEventListener('change', async ()=>{
+  photoInput.addEventListener('change', ()=>{
     const file = photoInput.files[0];
     if(!file) return;
-    root.querySelector('#fileDropLabel').textContent = '사진을 불러오는 중...';
-    try{
-      currentPhotoDataUrl = await compressImage(file);
+    openCropModal(file, (dataUrl)=>{
+      currentPhotoDataUrl = dataUrl;
       const preview = root.querySelector('#photoPreview');
-      preview.src = currentPhotoDataUrl;
+      preview.src = dataUrl;
       preview.style.display = 'block';
       root.querySelector('#fileDropLabel').textContent = '다른 사진으로 바꾸기';
-    }catch(e){
-      showToast('사진을 불러오지 못했어요. 다시 시도해주세요.');
-    }
+    });
+    photoInput.value = '';
   });
 
   root.querySelector('#submitBtn').addEventListener('click', async ()=>{
@@ -960,12 +1016,17 @@ async function renderGallery(root){
           </div>
         </div>`).join('') + `</div>`;
     }
-    root.innerHTML = `${topbar()}<h2 style="margin-bottom:16px;">분우 신혼부부 공동체 감사 나눔 노트</h2>
+    root.innerHTML = `${topbar()}
+      <h2 style="margin-bottom:16px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;">
+        <span>분우 신혼부부 공동체 감사 나눔 노트</span>
+        <button class="btn btn-secondary" id="goEditBtn" style="font-size:13px;padding:8px 14px;">수정하기</button>
+      </h2>
       ${body}
       <div class="mini-download-row">
         <span class="nav-link" id="downloadPhotosBtn">사진만 다운로드</span>
         <span class="nav-link" id="downloadCardsBtn">카드 다운로드</span>
       </div>`;
+    root.querySelector('#goEditBtn').addEventListener('click', ()=> goTo('find'));
     root.querySelectorAll('.tile').forEach(t=>{
       t.addEventListener('click', ()=>{
         const e = entryCache[t.dataset.key];
