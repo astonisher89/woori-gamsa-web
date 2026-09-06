@@ -153,7 +153,18 @@
   .edit-code-box .label{font-size:13px;color:var(--ink-soft);}
   .edit-code-box .code{font-size:32px;font-weight:700;letter-spacing:4px;color:var(--accent-dark);margin:4px 0;}
   .edit-code-box .hint{font-size:12px;color:var(--ink-soft);}
-  .card-img{width:100%;max-width:320px;border-radius:10px;border:1px solid var(--line);margin:14px 0;}
+  .card-img{
+    display:block;width:100%;max-width:320px;border-radius:14px;
+    box-shadow:0 6px 20px rgba(43,42,37,0.15);margin:18px auto;
+  }
+  .success-actions{
+    display:flex;gap:10px;margin-top:20px;
+  }
+  .success-actions .btn{
+    flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    border-radius:999px;font-weight:500;
+  }
+  .success-actions .btn svg{width:16px;height:16px;flex-shrink:0;}
   .btn-row{display:flex;gap:10px;margin-top:16px;}
   .btn-row .btn{flex:1;margin-top:0;}
 
@@ -738,18 +749,19 @@ async function renderSuccess(root, entry, isEdit){
   root.innerHTML = `
     ${topbar()}
     <div class="card success-wrap">
-      <h2>${isEdit ? '수정 내용이 저장됐어요' : '감사가 나눔 노트에 담겼어요'}</h2>
-      <p>우리 부부만의 감사 카드가 완성됐어요. 이미지를 저장해서 소장해보세요.</p>
+      <h2>${isEdit ? '수정 완료' : '제출 완료'}</h2>
       ${entry.editCode ? `<div class="edit-code-box"><div class="label">나중에 수정할 때 필요한 코드</div><div class="code">${esc(entry.editCode)}</div><div class="hint">꼭 기억해두거나 캡처해두세요. 다른 폰에서도 이 코드로 수정할 수 있어요.</div></div>` : ''}
       <div class="loading" id="cardLoading">카드를 만드는 중...</div>
       <img id="cardImg" class="card-img" style="display:none;">
-      <div class="btn-row">
-        <a class="btn btn-secondary" id="downloadBtn" style="display:none;text-decoration:none;text-align:center;">이미지로 저장</a>
-        <button class="btn btn-secondary" id="editBtn">수정하기</button>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-secondary" id="againBtn">다른 조 작성하기</button>
-        <button class="btn btn-primary" onclick="goTo('gallery')">갤러리에서 모두 보기</button>
+      <div class="btn-row success-actions">
+        <button class="btn btn-secondary" id="editBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          수정하기
+        </button>
+        <button class="btn btn-primary" id="goGalleryBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          갤러리 보기
+        </button>
       </div>
     </div>
   `;
@@ -759,11 +771,6 @@ async function renderSuccess(root, entry, isEdit){
     img.src = dataUrl;
     img.style.display = 'block';
     root.querySelector('#cardLoading').style.display = 'none';
-    const dl = root.querySelector('#downloadBtn');
-    dl.href = dataUrl;
-    const safeName = entry.coupleName.replace(/[\\/:*?"<>|]/g,'_');
-    dl.download = `감사노트_${safeName}.png`;
-    dl.style.display = 'block';
   }catch(e){
     root.querySelector('#cardLoading').textContent = '카드를 만드는 데 실패했어요. 갤러리에서 사진은 확인하실 수 있어요.';
   }
@@ -771,10 +778,7 @@ async function renderSuccess(root, entry, isEdit){
     currentPhotoDataUrl = entry.photo;
     renderEditForm(root, entry);
   });
-  root.querySelector('#againBtn').addEventListener('click', ()=>{
-    currentPhotoDataUrl = null;
-    renderSubmit(root);
-  });
+  root.querySelector('#goGalleryBtn').addEventListener('click', ()=> goTo('gallery'));
 }
 
 async function renderFindForm(root){
@@ -968,10 +972,8 @@ async function renderScreen(root){
   const submitUrl = location.origin + location.pathname + '#submit';
 
   root.innerHTML = `
-    ${topbar('')}
+    ${topbar(PROGRAM_TITLE)}
     <div class="screen-header">
-      <h1 class="page-title">${esc(PROGRAM_TITLE)}</h1>
-      <div class="title-underline"></div>
       <div class="scripture">
         <div class="verse-stage">
           ${SCRIPTURE_VERSES.map((v,i)=>`<p class="verse${i===0?' active':''}"><span class="vnum">${v.n}</span>${esc(v.text)}</p>`).join('')}
