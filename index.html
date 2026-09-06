@@ -186,11 +186,16 @@
 
   .grid{display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;}
   .tile{
-    background:var(--paper-card);border-radius:16px;overflow:hidden;
+    position:relative;background:var(--paper-card);border-radius:16px;overflow:hidden;
     cursor:pointer;box-shadow:0 1px 3px rgba(43,42,37,0.08);
     transition:transform .15s ease, box-shadow .15s ease;
   }
   .tile:hover{transform:translateY(-3px);box-shadow:0 8px 18px rgba(43,42,37,0.14);}
+  .tile.mine{outline:3px solid var(--accent);outline-offset:-3px;}
+  .tile.mine::after{
+    content:'내 사진';position:absolute;top:6px;left:6px;background:var(--accent);color:#fff;
+    font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;
+  }
   .tile img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}
   .tile .tile-meta{padding:10px 12px;}
   .tile .tile-meta .who{font-size:13px;font-weight:600;color:var(--ink);}
@@ -354,13 +359,23 @@
     flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;
     padding:2px 16px 6px;overflow:hidden;width:100%;
   }
-  .marquee-wrap{position:relative;width:100%;overflow:hidden;}
-  .marquee-track{display:flex;height:100%;will-change:transform;}
-  .marquee-group{display:flex;gap:14px;padding-right:14px;height:100%;flex-shrink:0;}
-  .marquee-tile{height:100%;aspect-ratio:1/1;border-radius:12px;overflow:hidden;flex-shrink:0;}
-  .marquee-tile img{width:100%;height:100%;object-fit:cover;display:block;}
+  .bento-wrap{position:relative;width:100%;overflow:hidden;}
+  .bento-track{display:flex;flex-direction:column;will-change:transform;}
+  .bento-group{
+    display:grid;grid-template-columns:repeat(6, 1fr);grid-auto-rows:110px;grid-auto-flow:dense;gap:10px;
+    padding-bottom:10px;
+  }
+  .bento-tile{border-radius:14px;overflow:hidden;position:relative;}
+  .bento-tile img{width:100%;height:100%;object-fit:cover;display:block;}
+  .bento-tile.big{grid-column:span 2;grid-row:span 2;}
+  .bento-tile.wide{grid-column:span 2;}
+  .bento-tile.mine{outline:3px solid var(--accent);outline-offset:-3px;box-shadow:0 0 0 3px rgba(44,74,104,0.25);}
+  .bento-tile.mine::after{
+    content:'내 사진';position:absolute;top:6px;left:6px;background:var(--accent);color:#fff;
+    font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;
+  }
   @media (prefers-reduced-motion: no-preference){
-    .marquee-tile.arrive{animation:tilepop .5s cubic-bezier(.34,1.56,.64,1);}
+    .bento-tile.arrive{animation:tilepop .5s cubic-bezier(.34,1.56,.64,1);}
   }
   @keyframes tilepop{from{opacity:0;transform:scale(.6);}to{opacity:1;transform:scale(1);}}
 
@@ -395,6 +410,7 @@
     .order-step .icon{width:18px;height:18px;margin-bottom:4px;}
     .order-num{width:16px;height:16px;font-size:10px;margin-bottom:4px;}
     .order-print-card{width:280px;}
+    .bento-group{grid-template-columns:repeat(3, 1fr);grid-auto-rows:70px;gap:6px;}
     .screen-page .topbar{padding:4px 16px;}
     .screen-header{padding-left:16px;padding-right:16px;padding-top:4px;padding-bottom:2px;}
     .screen-header h1{font-size:26px;gap:6px;}
@@ -1034,10 +1050,10 @@ async function renderScreen(root){
     </div>
     <div id="screenWallHeader" class="screen-header" style="padding-top:6px;"></div>
     <div class="photowall-wrap" id="wallWrap">
-      <div class="marquee-wrap" id="marqueeWrap">
-        <div class="marquee-track" id="marqueeTrack">
-          <div class="marquee-group" id="marqueeGroupA"></div>
-          <div class="marquee-group" id="marqueeGroupB"></div>
+      <div class="bento-wrap" id="bentoWrap">
+        <div class="bento-track" id="bentoTrack">
+          <div class="bento-group" id="bentoGroupA"></div>
+          <div class="bento-group" id="bentoGroupB"></div>
         </div>
       </div>
     </div>
@@ -1057,19 +1073,29 @@ async function renderScreen(root){
   }
 
   const knownTiles = {};
+  let bentoOffset = 0;
+
+  function hashSizeClass(key){
+    let h = 0;
+    for(let i=0;i<key.length;i++){ h = (h*31 + key.charCodeAt(i)) | 0; }
+    const m = Math.abs(h) % 6;
+    if(m === 0) return 'big';
+    if(m === 3) return 'wide';
+    return '';
+  }
 
   function drawWall(list){
-    list = list.slice().sort((a,b)=>a.ts-b.ts);
+    list = list.slice().sort((a,b)=>b.ts-a.ts); // 최신순: 방금 올라온 사진이 맨 앞
 
     const headerEl = document.getElementById('screenWallHeader');
     const wrapEl = document.getElementById('wallWrap');
-    const marqueeWrapEl = document.getElementById('marqueeWrap');
-    const groupA = document.getElementById('marqueeGroupA');
-    const groupB = document.getElementById('marqueeGroupB');
-    if(!headerEl || !wrapEl || !marqueeWrapEl || !groupA || !groupB) return;
+    const bentoWrapEl = document.getElementById('bentoWrap');
+    const groupA = document.getElementById('bentoGroupA');
+    const groupB = document.getElementById('bentoGroupB');
+    if(!headerEl || !wrapEl || !bentoWrapEl || !groupA || !groupB) return;
 
     const availH = Math.max(80, wrapEl.clientHeight - 4);
-    marqueeWrapEl.style.height = availH + 'px';
+    bentoWrapEl.style.height = availH + 'px';
 
     if(list.length === 0){
       headerEl.innerHTML = `<div class="eyebrow">아직 도착한 감사가 없어요</div>`;
@@ -1082,19 +1108,33 @@ async function renderScreen(root){
     headerEl.innerHTML = `<div class="eyebrow">지금까지 ${list.length}개의 감사가 도착했어요</div>`;
 
     const seenKeys = new Set();
-    list.forEach(e=>{
+    let hasNew = false;
+    list.forEach((e, i)=>{
       seenKeys.add(e._key);
+      const sizeClass = i === 0 ? 'big' : hashSizeClass(e._key);
+      const mineClass = mySubmissions.has(e._key) ? ' mine' : '';
       if(!knownTiles[e._key]){
+        hasNew = true;
         const tileA = document.createElement('div');
-        tileA.className = 'marquee-tile arrive';
+        tileA.className = `bento-tile arrive${sizeClass ? ' ' + sizeClass : ''}${mineClass}`;
         tileA.innerHTML = `<img src="${e.photo}" alt="">`;
         const tileB = tileA.cloneNode(true);
-        groupA.appendChild(tileA);
-        groupB.appendChild(tileB);
+        groupA.prepend(tileA);
+        groupB.prepend(tileB);
         knownTiles[e._key] = [tileA, tileB];
         [tileA, tileB].forEach(t => t.addEventListener('animationend', ()=> t.classList.remove('arrive'), {once:true}));
+      } else {
+        knownTiles[e._key].forEach(t=>{
+          t.className = `bento-tile${sizeClass ? ' ' + sizeClass : ''}${mineClass}`;
+        });
       }
     });
+
+    if(hasNew){
+      bentoOffset = 0;
+      const trackEl = document.getElementById('bentoTrack');
+      if(trackEl) trackEl.style.transform = 'translateY(0px)';
+    }
 
     Object.keys(knownTiles).forEach(k=>{
       if(!seenKeys.has(k)){
@@ -1110,27 +1150,26 @@ async function renderScreen(root){
     drawWall(list);
   });
 
-  const MARQUEE_SPEED = 45;
-  let marqueeOffset = 0;
-  let marqueeLastTs = null;
-  function marqueeStep(ts){
-    const trackEl = document.getElementById('marqueeTrack');
-    const groupEl = document.getElementById('marqueeGroupA');
+  const BENTO_SPEED = 30;
+  let bentoLastTs = null;
+  function bentoStep(ts){
+    const trackEl = document.getElementById('bentoTrack');
+    const groupEl = document.getElementById('bentoGroupA');
     if(trackEl && groupEl && groupEl.children.length > 0){
-      if(marqueeLastTs !== null){
-        const dt = (ts - marqueeLastTs) / 1000;
-        const groupWidth = groupEl.scrollWidth || 1;
-        marqueeOffset += MARQUEE_SPEED * dt;
-        if(marqueeOffset >= groupWidth) marqueeOffset -= groupWidth;
-        trackEl.style.transform = `translateX(${-marqueeOffset}px)`;
+      if(bentoLastTs !== null){
+        const dt = (ts - bentoLastTs) / 1000;
+        const groupHeight = groupEl.scrollHeight || 1;
+        bentoOffset += BENTO_SPEED * dt;
+        if(bentoOffset >= groupHeight) bentoOffset -= groupHeight;
+        trackEl.style.transform = `translateY(${-bentoOffset}px)`;
       }
-      marqueeLastTs = ts;
+      bentoLastTs = ts;
     } else {
-      marqueeLastTs = null;
+      bentoLastTs = null;
     }
-    marqueeRaf = requestAnimationFrame(marqueeStep);
+    marqueeRaf = requestAnimationFrame(bentoStep);
   }
-  marqueeRaf = requestAnimationFrame(marqueeStep);
+  marqueeRaf = requestAnimationFrame(bentoStep);
 }
 
 // ---------- GALLERY VIEW (all rounds combined, instagram-style) ----------
@@ -1157,7 +1196,7 @@ async function renderGallery(root){
       body = `<div class="empty-state"><h3>아직 나눔이 없어요</h3><p>가장 먼저 감사를 나눠보세요.</p></div>`;
     } else {
       body = `<div class="grid">` + list.map(e => `
-        <div class="tile" data-key="${e._key}">
+        <div class="tile${mySubmissions.has(e._key) ? ' mine' : ''}" data-key="${e._key}">
           <img src="${e.photo}" alt="">
           <div class="tile-meta">
             <div class="who">${esc(e.coupleName)}${e.district ? ` <span class="district">- ${esc(e.district)}</span>` : ''}</div>
