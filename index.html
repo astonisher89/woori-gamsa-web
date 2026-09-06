@@ -88,7 +88,7 @@
     --radius:14px;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;height:100%;}
+  html,body{margin:0;padding:0;height:100%;overflow-x:hidden;max-width:100%;}
   body{
     background:var(--paper);
     color:var(--ink);
@@ -101,7 +101,7 @@
     margin:0;
     color:var(--ink);
   }
-  #app{max-width:960px;margin:0 auto;padding:20px 16px 60px;}
+  #app{max-width:960px;margin:0 auto;padding:20px 16px 60px;overflow-x:hidden;}
   .topbar{
     display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 4px;
     padding:14px 4px 22px;border-bottom:1px solid var(--line);margin-bottom:24px;
@@ -655,8 +655,11 @@ async function renderSubmit(root){
   root.innerHTML = `
     ${topbar()}
     <div class="card">
-      <label for="coupleName">부부</label>
-      <input type="text" id="coupleName" maxlength="30" placeholder="예: 영채 슬기 부부">
+      <label for="husbandName">남편 이름</label>
+      <input type="text" id="husbandName" maxlength="15" placeholder="예: 민준">
+
+      <label for="wifeName">아내 이름</label>
+      <input type="text" id="wifeName" maxlength="15" placeholder="예: 서연">
 
       <label for="district">교구</label>
       <input type="text" id="district" maxlength="20" placeholder="예: 8교구">
@@ -710,10 +713,12 @@ async function renderSubmit(root){
   root.querySelector('#submitBtn').addEventListener('click', async ()=>{
     const errBox = root.querySelector('#formError');
     errBox.style.display = 'none';
-    const coupleName = root.querySelector('#coupleName').value.trim();
+    const husbandName = root.querySelector('#husbandName').value.trim();
+    const wifeName = root.querySelector('#wifeName').value.trim();
     const district = root.querySelector('#district').value.trim();
     const message = root.querySelector('#message').value.trim();
-    if(!coupleName){ errBox.textContent='부부(조) 이름을 입력해주세요.'; errBox.style.display='block'; return; }
+    if(!husbandName){ errBox.textContent='남편 이름을 입력해주세요.'; errBox.style.display='block'; return; }
+    if(!wifeName){ errBox.textContent='아내 이름을 입력해주세요.'; errBox.style.display='block'; return; }
     if(!district){ errBox.textContent='교구를 입력해주세요.'; errBox.style.display='block'; return; }
     if(!currentPhotoDataUrl){ errBox.textContent='사진을 선택해주세요.'; errBox.style.display='block'; return; }
     if(!message){ errBox.textContent='감사 내용을 적어주세요.'; errBox.style.display='block'; return; }
@@ -722,8 +727,11 @@ async function renderSubmit(root){
     btn.disabled = true;
     btn.textContent = '나누는 중...';
 
+    const coupleName = `${husbandName}, ${wifeName} 부부`;
     const entry = {
       coupleName,
+      husbandName,
+      wifeName,
       district,
       message,
       photo: currentPhotoDataUrl,
@@ -845,8 +853,11 @@ async function renderEditForm(root, entry){
     ${topbar()}
     <div class="card">
       <h2 style="margin-bottom:14px;">감사 나눔 수정</h2>
-      <label for="coupleName">부부</label>
-      <input type="text" id="coupleName" maxlength="30" value="${esc(entry.coupleName)}">
+      <label for="husbandName">남편 이름</label>
+      <input type="text" id="husbandName" maxlength="15" value="${esc(entry.husbandName || '')}" placeholder="예: 민준">
+
+      <label for="wifeName">아내 이름</label>
+      <input type="text" id="wifeName" maxlength="15" value="${esc(entry.wifeName || '')}" placeholder="예: 서연">
 
       <label for="district">교구</label>
       <input type="text" id="district" maxlength="20" value="${esc(entry.district || '')}" placeholder="예: 8교구">
@@ -913,10 +924,12 @@ async function renderEditForm(root, entry){
   root.querySelector('#submitBtn').addEventListener('click', async ()=>{
     const errBox = root.querySelector('#formError');
     errBox.style.display = 'none';
-    const coupleName = root.querySelector('#coupleName').value.trim();
+    const husbandName = root.querySelector('#husbandName').value.trim();
+    const wifeName = root.querySelector('#wifeName').value.trim();
     const district = root.querySelector('#district').value.trim();
     const message = root.querySelector('#message').value.trim();
-    if(!coupleName){ errBox.textContent='부부(조) 이름을 입력해주세요.'; errBox.style.display='block'; return; }
+    if(!husbandName){ errBox.textContent='남편 이름을 입력해주세요.'; errBox.style.display='block'; return; }
+    if(!wifeName){ errBox.textContent='아내 이름을 입력해주세요.'; errBox.style.display='block'; return; }
     if(!district){ errBox.textContent='교구를 입력해주세요.'; errBox.style.display='block'; return; }
     if(!currentPhotoDataUrl){ errBox.textContent='사진을 선택해주세요.'; errBox.style.display='block'; return; }
     if(!message){ errBox.textContent='감사 내용을 적어주세요.'; errBox.style.display='block'; return; }
@@ -925,7 +938,8 @@ async function renderEditForm(root, entry){
     btn.disabled = true;
     btn.textContent = '수정하는 중...';
 
-    const updated = { coupleName, district, message, photo: currentPhotoDataUrl, ts: entry.ts, editCode: entry.editCode };
+    const coupleName = `${husbandName}, ${wifeName} 부부`;
+    const updated = { coupleName, husbandName, wifeName, district, message, photo: currentPhotoDataUrl, ts: entry.ts, editCode: entry.editCode };
     try{
       await window.fb.updateEntry(entry._key, updated);
       updated._key = entry._key;
