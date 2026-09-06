@@ -166,13 +166,12 @@
     display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;
     margin-bottom:28px;
   }
-  .filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px;}
-  .filter-chip{
-    font-size:12px;padding:7px 14px;border-radius:20px;border:1px solid var(--line);
-    background:#fff;color:var(--ink-soft);cursor:pointer;transition:background .15s ease,color .15s ease;
+  .filter-bar{margin-bottom:22px;}
+  .district-select{
+    font-size:14px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);
+    background:#fff;color:var(--ink);cursor:pointer;font-family:inherit;
   }
-  .filter-chip:hover{border-color:var(--accent);}
-  .filter-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .district-select:focus{outline:2px solid var(--accent);outline-offset:1px;}
 
   .grid{display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;}
   .tile{
@@ -230,8 +229,7 @@
   }
   .modal-body .who .district{font-family:'Noto Sans KR',sans-serif;font-weight:500;font-size:14px;color:var(--motif);}
   .event-tag{
-    display:inline-block;margin-top:12px;font-size:10px;color:var(--ink-soft);
-    background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:4px 10px;
+    display:block;margin-top:12px;font-size:10px;color:var(--ink-soft);opacity:0.55;
   }
   .modal-body .msg{
     font-size:15px;line-height:1.75;white-space:pre-wrap;color:var(--ink);
@@ -257,7 +255,7 @@
   .screen-header .eyebrow{color:var(--ink);font-size:16px;}
   #screenWallHeader.screen-header{padding-top:22px;padding-bottom:14px;}
   #screenWallHeader.screen-header .eyebrow{font-size:18px;font-weight:600;color:var(--accent-dark);}
-  .screen-header h1{font-size:30px;}
+  .screen-header h1{font-size:44px;font-family:'Noto Serif KR',serif;color:var(--ink);}
   .title-underline{width:52px;height:3px;background:var(--accent);margin:8px auto 0;border-radius:2px;}
   .scripture{
     max-width:560px;margin:8px auto 0;text-align:center;color:var(--ink-soft);
@@ -351,7 +349,7 @@
     .step-qr{display:none;}
     .screen-page .topbar{padding:4px 16px;}
     .screen-header{padding-left:16px;padding-right:16px;padding-top:4px;padding-bottom:2px;}
-    .screen-header h1{font-size:19px;gap:6px;}
+    .screen-header h1{font-size:26px;gap:6px;}
     .title-underline{margin:6px auto 0;}
     .screen-page .scripture{display:none;}
     .screen-top{padding:4px 16px 2px;}
@@ -581,7 +579,7 @@ async function drawPersonalCard(entry){
       ctx.font = '400 23px "Noto Sans KR", sans-serif';
       const msgEndY = wrapText(ctx, entry.message, pad, pad + photoSize + 182, W - pad*2, 33);
 
-      ctx.fillStyle = '#8C6A3F';
+      ctx.fillStyle = 'rgba(43,42,37,0.4)';
       ctx.font = '400 15px "Noto Sans KR", sans-serif';
       ctx.fillText(EVENT_LABEL, pad, msgEndY + 14);
 
@@ -634,8 +632,9 @@ function navLinks(){
   return NAV_ITEMS.map(item => `<span class="nav-link" onclick="goTo('${item.view}')">${item.icon}<span>${item.label}</span></span>`).join('');
 }
 function topbar(brandText){
+  const text = brandText === undefined ? '우리의 감사' : brandText;
   return `<div class="topbar">
-    <div class="brand">${ARMOR_ICON}<span>${esc(brandText || '우리의 감사')}</span></div>
+    <div class="brand">${ARMOR_ICON}${text ? `<span>${esc(text)}</span>` : ''}</div>
     <div class="nav">${navLinks()}</div>
   </div>`;
 }
@@ -969,8 +968,10 @@ async function renderScreen(root){
   const submitUrl = location.origin + location.pathname + '#submit';
 
   root.innerHTML = `
-    ${topbar(PROGRAM_TITLE)}
+    ${topbar('')}
     <div class="screen-header">
+      <h1 class="page-title">${esc(PROGRAM_TITLE)}</h1>
+      <div class="title-underline"></div>
       <div class="scripture">
         <div class="verse-stage">
           ${SCRIPTURE_VERSES.map((v,i)=>`<p class="verse${i===0?' active':''}"><span class="vnum">${v.n}</span>${esc(v.text)}</p>`).join('')}
@@ -1102,20 +1103,22 @@ async function renderScreen(root){
 
 // ---------- GALLERY VIEW (all rounds combined, instagram-style) ----------
 async function renderGallery(root){
+  const DISTRICT_OPTIONS = Array.from({length: 12}, (_, i) => `${i+1}교구`);
   let districtFilter = 'all';
   let lastAll = [];
 
   function draw(all){
     lastAll = all;
-    const districts = Array.from(new Set(all.map(e=>e.district).filter(Boolean))).sort();
     const filtered = districtFilter === 'all' ? all : all.filter(e => e.district === districtFilter);
     const list = filtered.slice().sort((a,b)=>b.ts-a.ts);
 
-    const filterBar = districts.length > 0 ? `
+    const filterBar = `
       <div class="filter-bar">
-        <span class="filter-chip${districtFilter==='all'?' active':''}" data-d="all">전체</span>
-        ${districts.map(d=>`<span class="filter-chip${districtFilter===d?' active':''}" data-d="${esc(d)}">${esc(d)}</span>`).join('')}
-      </div>` : '';
+        <select id="districtFilterSelect" class="district-select">
+          <option value="all">전체 교구</option>
+          ${DISTRICT_OPTIONS.map(d=>`<option value="${d}"${districtFilter===d?' selected':''}>${d}</option>`).join('')}
+        </select>
+      </div>`;
 
     let body;
     if(list.length === 0){
@@ -1138,8 +1141,9 @@ async function renderGallery(root){
       ${filterBar}
       ${body}`;
     root.querySelector('#goEditBtn').addEventListener('click', ()=> goTo('find'));
-    root.querySelectorAll('.filter-chip').forEach(chip=>{
-      chip.addEventListener('click', ()=>{ districtFilter = chip.dataset.d; draw(lastAll); });
+    root.querySelector('#districtFilterSelect').addEventListener('change', (ev)=>{
+      districtFilter = ev.target.value;
+      draw(lastAll);
     });
     root.querySelectorAll('.tile').forEach(t=>{
       t.addEventListener('click', ()=>{
@@ -1163,18 +1167,20 @@ function openModal(entry){
   overlay.innerHTML = `
     <div class="modal-box">
       <img src="${entry.photo}" alt="">
-      <button class="modal-icon-btn" id="modalCardBtn" title="카드 다운로드">
+      <button class="modal-icon-btn" id="modalCloseBtn" title="닫기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M6 18L18 6"/></svg>
+      </button>
+      <button class="modal-icon-btn" id="modalCardBtn" title="카드 다운로드" style="right:50px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
       </button>
       <div class="modal-body">
         <div class="who">${esc(entry.coupleName)}${entry.district ? ` <span class="district">- ${esc(entry.district)}</span>` : ''}</div>
         <div class="msg">${esc(entry.message)}</div>
         <div class="event-tag">${esc(EVENT_LABEL)}</div>
-        <button class="modal-close">닫기</button>
       </div>
     </div>`;
   overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
-  overlay.querySelector('.modal-close').addEventListener('click', ()=> overlay.remove());
+  overlay.querySelector('#modalCloseBtn').addEventListener('click', ()=> overlay.remove());
   overlay.querySelector('#modalCardBtn').addEventListener('click', async (ev)=>{
     const btn = ev.currentTarget;
     btn.disabled = true;
