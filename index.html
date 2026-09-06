@@ -356,24 +356,41 @@
   }
   .ribbon-divider svg{width:20px;height:20px;color:var(--motif);flex-shrink:0;}
   .photowall-wrap{
-    flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;
-    padding:2px 16px 6px;overflow:hidden;width:100%;
+    flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+    padding:2px 16px 6px;overflow:hidden;width:100%;gap:10px;
   }
+  .hero-wall{
+    position:relative;flex:1 1 auto;min-height:0;width:100%;border-radius:16px;overflow:hidden;
+    background:var(--paper-card);
+  }
+  .hero-wall img{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    opacity:0;transition:opacity .7s ease;
+  }
+  .hero-wall img.active{opacity:1;}
+  .hero-caption{
+    position:absolute;left:0;right:0;bottom:0;padding:28px 24px 16px;
+    background:linear-gradient(to top, rgba(0,0,0,0.55), transparent);
+    color:#fff;z-index:2;
+  }
+  .hero-caption .who{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:600;}
+  .hero-caption .who .district{font-family:'Noto Sans KR',sans-serif;font-weight:500;font-size:14px;opacity:0.85;}
+  .hero-caption .mine-badge{
+    display:inline-block;margin-bottom:6px;background:var(--accent);color:#fff;
+    font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;
+  }
+  .thumb-strip-wrap{position:relative;width:100%;overflow:hidden;flex:0 0 auto;height:90px;}
   .card-marquee-wrap{position:relative;width:100%;overflow:hidden;}
   .card-marquee-track{display:flex;height:100%;will-change:transform;}
-  .card-marquee-group{display:flex;gap:16px;padding-right:16px;height:100%;flex-shrink:0;}
+  .card-marquee-group{display:flex;gap:2px;height:100%;flex-shrink:0;}
   .news-card{
-    position:relative;flex-shrink:0;width:200px;height:100%;border-radius:14px;overflow:hidden;
-    background:var(--paper-card);box-shadow:0 2px 10px rgba(43,42,37,0.12);
-    display:flex;flex-direction:column;
+    position:relative;flex-shrink:0;width:220px;height:100%;overflow:hidden;
+    background:var(--paper-card);cursor:pointer;
   }
-  .news-card img{width:100%;flex:1;min-height:0;object-fit:cover;display:block;}
-  .news-card .cap{padding:8px 10px;flex:0 0 auto;}
-  .news-card .cap .who{font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .news-card .cap .who .district{font-weight:500;color:var(--accent-dark);font-size:11px;}
+  .news-card img{width:100%;height:100%;object-fit:cover;display:block;}
   .news-card.mine{outline:3px solid var(--accent);outline-offset:-3px;}
   .news-card.mine::before{
-    content:'내 사진';position:absolute;top:6px;left:6px;background:var(--accent);color:#fff;
+    content:'내 사진';position:absolute;top:8px;left:8px;background:var(--accent);color:#fff;
     font-size:9px;padding:2px 7px;border-radius:20px;font-weight:500;z-index:2;
   }
   @media (prefers-reduced-motion: no-preference){
@@ -412,7 +429,11 @@
     .order-step .icon{width:18px;height:18px;margin-bottom:4px;}
     .order-num{width:16px;height:16px;font-size:10px;margin-bottom:4px;}
     .order-print-card{width:280px;}
-    .news-card{width:140px;}
+    .news-card{width:110px;}
+    .thumb-strip-wrap{height:64px;}
+    .hero-caption{padding:18px 14px 12px;}
+    .hero-caption .who{font-size:16px;}
+    .hero-caption .who .district{font-size:12px;}
     .screen-page .topbar{padding:4px 16px;}
     .screen-header{padding-left:16px;padding-right:16px;padding-top:4px;padding-bottom:2px;}
     .screen-header h1{font-size:26px;gap:6px;}
@@ -451,6 +472,8 @@ function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } 
 function stopMarquee(){ if(marqueeRaf){ cancelAnimationFrame(marqueeRaf); marqueeRaf=null; } }
 function stopScripture(){ if(scriptureTimer){ clearInterval(scriptureTimer); scriptureTimer=null; } }
 let entriesUnsub = null;
+let heroTimer = null;
+function stopHero(){ if(heroTimer){ clearInterval(heroTimer); heroTimer=null; } }
 function stopEntriesSub(){ if(entriesUnsub){ entriesUnsub(); entriesUnsub=null; } }
 
 function dataUrlToBase64(dataUrl){
@@ -556,8 +579,14 @@ function openCropModal(file, onCropped){
     }
     overlay.querySelector('#cropCancelBtn').addEventListener('click', closeOverlay);
     overlay.querySelector('#cropDoneBtn').addEventListener('click', ()=>{
-      const canvas = cropper.getCroppedCanvas({ width: 640, height: 640 });
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+      const canvas = cropper.getCroppedCanvas({ width: 1200, height: 1200 });
+      let quality = 0.85;
+      let dataUrl = canvas.toDataURL('image/jpeg', quality);
+      // Firestore 문서 1MB 한도 보호: 너무 크면 품질을 자동으로 낮춤
+      while(dataUrl.length * 0.75 > 700 * 1024 && quality > 0.5){
+        quality -= 0.1;
+        dataUrl = canvas.toDataURL('image/jpeg', quality);
+      }
       closeOverlay();
       onCropped(dataUrl);
     });
@@ -669,6 +698,7 @@ async function render(){
   stopMarquee();
   stopScripture();
   stopEntriesSub();
+  stopHero();
   const view = currentView();
   const root = document.getElementById('app');
   root.style.transition = 'opacity .15s ease';
@@ -1052,7 +1082,10 @@ async function renderScreen(root){
     </div>
     <div id="screenWallHeader" class="screen-header" style="padding-top:6px;"></div>
     <div class="photowall-wrap" id="wallWrap">
-      <div class="card-marquee-wrap" id="cardMarqueeWrap">
+      <div class="hero-wall" id="heroWall">
+        <div class="hero-caption" id="heroCaption"></div>
+      </div>
+      <div class="thumb-strip-wrap" id="cardMarqueeWrap">
         <div class="card-marquee-track" id="cardMarqueeTrack">
           <div class="card-marquee-group" id="cardGroupA"></div>
           <div class="card-marquee-group" id="cardGroupB"></div>
@@ -1076,6 +1109,39 @@ async function renderScreen(root){
 
   const knownTiles = {};
   let cardOffset = 0;
+  let heroOrder = [];
+  let heroIndex = 0;
+
+  function showHero(key){
+    const entry = entryCache[key];
+    const heroWall = document.getElementById('heroWall');
+    const captionEl = document.getElementById('heroCaption');
+    if(!entry || !heroWall || !captionEl) return;
+    const oldImg = heroWall.querySelector('img.active');
+    const newImg = document.createElement('img');
+    newImg.src = entry.photo;
+    newImg.alt = '';
+    heroWall.insertBefore(newImg, captionEl);
+    requestAnimationFrame(()=>{ newImg.classList.add('active'); });
+    if(oldImg){
+      oldImg.classList.remove('active');
+      setTimeout(()=>{ oldImg.remove(); }, 750);
+    }
+    const isMine = mySubmissions.has(key);
+    captionEl.innerHTML = `
+      ${isMine ? '<span class="mine-badge">내 사진</span><br>' : ''}
+      <span class="who">${esc(entry.coupleName)}${entry.district ? ` <span class="district">- ${esc(entry.district)}</span>` : ''}</span>
+    `;
+  }
+
+  function restartHeroTimer(){
+    if(heroTimer) clearInterval(heroTimer);
+    heroTimer = setInterval(()=>{
+      if(heroOrder.length === 0) return;
+      heroIndex = (heroIndex + 1) % heroOrder.length;
+      showHero(heroOrder[heroIndex]);
+    }, 5000);
+  }
 
   function drawWall(list){
     list = list.slice().sort((a,b)=>b.ts-a.ts); // 최신순: 방금 올라온 사진이 맨 앞
@@ -1085,16 +1151,18 @@ async function renderScreen(root){
     const marqueeWrapEl = document.getElementById('cardMarqueeWrap');
     const groupA = document.getElementById('cardGroupA');
     const groupB = document.getElementById('cardGroupB');
-    if(!headerEl || !wrapEl || !marqueeWrapEl || !groupA || !groupB) return;
-
-    const availH = Math.max(80, wrapEl.clientHeight - 4);
-    marqueeWrapEl.style.height = availH + 'px';
+    const heroWall = document.getElementById('heroWall');
+    if(!headerEl || !wrapEl || !marqueeWrapEl || !groupA || !groupB || !heroWall) return;
 
     if(list.length === 0){
       headerEl.innerHTML = `<div class="eyebrow">아직 도착한 감사가 없어요</div>`;
       groupA.innerHTML = '';
       groupB.innerHTML = '';
       Object.keys(knownTiles).forEach(k=>delete knownTiles[k]);
+      heroWall.querySelectorAll('img').forEach(img=>img.remove());
+      document.getElementById('heroCaption').innerHTML = '';
+      if(heroTimer){ clearInterval(heroTimer); heroTimer = null; }
+      heroOrder = [];
       return;
     }
 
@@ -1109,10 +1177,16 @@ async function renderScreen(root){
         hasNew = true;
         const tileA = document.createElement('div');
         tileA.className = `news-card arrive${mineClass}`;
-        tileA.innerHTML = `
-          <img src="${e.photo}" alt="">
-          <div class="cap"><div class="who">${esc(e.coupleName)}${e.district ? ` <span class="district">- ${esc(e.district)}</span>` : ''}</div></div>`;
+        tileA.innerHTML = `<img src="${e.photo}" alt="">`;
+        tileA.addEventListener('click', ()=>{
+          const fresh = entryCache[e._key];
+          if(fresh) openModal(fresh);
+        });
         const tileB = tileA.cloneNode(true);
+        tileB.addEventListener('click', ()=>{
+          const fresh = entryCache[e._key];
+          if(fresh) openModal(fresh);
+        });
         groupA.prepend(tileA);
         groupB.prepend(tileB);
         knownTiles[e._key] = [tileA, tileB];
@@ -1128,6 +1202,20 @@ async function renderScreen(root){
       cardOffset = 0;
       const trackEl = document.getElementById('cardMarqueeTrack');
       if(trackEl) trackEl.style.transform = 'translateX(0px)';
+
+      heroOrder = list.map(e=>e._key);
+      heroIndex = 0;
+      showHero(heroOrder[0]);
+      restartHeroTimer();
+    } else {
+      const currentKey = heroOrder[heroIndex];
+      heroOrder = list.map(e=>e._key);
+      const newIdx = heroOrder.indexOf(currentKey);
+      heroIndex = newIdx >= 0 ? newIdx : 0;
+      if(!heroTimer){
+        showHero(heroOrder[heroIndex]);
+        restartHeroTimer();
+      }
     }
 
     Object.keys(knownTiles).forEach(k=>{
