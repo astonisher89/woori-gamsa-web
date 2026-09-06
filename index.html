@@ -359,23 +359,25 @@
     flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;
     padding:2px 16px 6px;overflow:hidden;width:100%;
   }
-  .bento-wrap{position:relative;width:100%;overflow:hidden;}
-  .bento-track{display:flex;flex-direction:column;will-change:transform;}
-  .bento-group{
-    display:grid;grid-template-columns:repeat(6, 1fr);grid-auto-rows:110px;grid-auto-flow:dense;gap:10px;
-    padding-bottom:10px;
+  .card-marquee-wrap{position:relative;width:100%;overflow:hidden;}
+  .card-marquee-track{display:flex;height:100%;will-change:transform;}
+  .card-marquee-group{display:flex;gap:16px;padding-right:16px;height:100%;flex-shrink:0;}
+  .news-card{
+    position:relative;flex-shrink:0;width:200px;height:100%;border-radius:14px;overflow:hidden;
+    background:var(--paper-card);box-shadow:0 2px 10px rgba(43,42,37,0.12);
+    display:flex;flex-direction:column;
   }
-  .bento-tile{border-radius:14px;overflow:hidden;position:relative;}
-  .bento-tile img{width:100%;height:100%;object-fit:cover;display:block;}
-  .bento-tile.big{grid-column:span 2;grid-row:span 2;}
-  .bento-tile.wide{grid-column:span 2;}
-  .bento-tile.mine{outline:3px solid var(--accent);outline-offset:-3px;box-shadow:0 0 0 3px rgba(44,74,104,0.25);}
-  .bento-tile.mine::after{
+  .news-card img{width:100%;flex:1;min-height:0;object-fit:cover;display:block;}
+  .news-card .cap{padding:8px 10px;flex:0 0 auto;}
+  .news-card .cap .who{font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .news-card .cap .who .district{font-weight:500;color:var(--accent-dark);font-size:11px;}
+  .news-card.mine{outline:3px solid var(--accent);outline-offset:-3px;}
+  .news-card.mine::before{
     content:'내 사진';position:absolute;top:6px;left:6px;background:var(--accent);color:#fff;
-    font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;
+    font-size:9px;padding:2px 7px;border-radius:20px;font-weight:500;z-index:2;
   }
   @media (prefers-reduced-motion: no-preference){
-    .bento-tile.arrive{animation:tilepop .5s cubic-bezier(.34,1.56,.64,1);}
+    .news-card.arrive{animation:tilepop .5s cubic-bezier(.34,1.56,.64,1);}
   }
   @keyframes tilepop{from{opacity:0;transform:scale(.6);}to{opacity:1;transform:scale(1);}}
 
@@ -410,7 +412,7 @@
     .order-step .icon{width:18px;height:18px;margin-bottom:4px;}
     .order-num{width:16px;height:16px;font-size:10px;margin-bottom:4px;}
     .order-print-card{width:280px;}
-    .bento-group{grid-template-columns:repeat(3, 1fr);grid-auto-rows:70px;gap:6px;}
+    .news-card{width:140px;}
     .screen-page .topbar{padding:4px 16px;}
     .screen-header{padding-left:16px;padding-right:16px;padding-top:4px;padding-bottom:2px;}
     .screen-header h1{font-size:26px;gap:6px;}
@@ -1050,10 +1052,10 @@ async function renderScreen(root){
     </div>
     <div id="screenWallHeader" class="screen-header" style="padding-top:6px;"></div>
     <div class="photowall-wrap" id="wallWrap">
-      <div class="bento-wrap" id="bentoWrap">
-        <div class="bento-track" id="bentoTrack">
-          <div class="bento-group" id="bentoGroupA"></div>
-          <div class="bento-group" id="bentoGroupB"></div>
+      <div class="card-marquee-wrap" id="cardMarqueeWrap">
+        <div class="card-marquee-track" id="cardMarqueeTrack">
+          <div class="card-marquee-group" id="cardGroupA"></div>
+          <div class="card-marquee-group" id="cardGroupB"></div>
         </div>
       </div>
     </div>
@@ -1073,29 +1075,20 @@ async function renderScreen(root){
   }
 
   const knownTiles = {};
-  let bentoOffset = 0;
-
-  function hashSizeClass(key){
-    let h = 0;
-    for(let i=0;i<key.length;i++){ h = (h*31 + key.charCodeAt(i)) | 0; }
-    const m = Math.abs(h) % 6;
-    if(m === 0) return 'big';
-    if(m === 3) return 'wide';
-    return '';
-  }
+  let cardOffset = 0;
 
   function drawWall(list){
     list = list.slice().sort((a,b)=>b.ts-a.ts); // 최신순: 방금 올라온 사진이 맨 앞
 
     const headerEl = document.getElementById('screenWallHeader');
     const wrapEl = document.getElementById('wallWrap');
-    const bentoWrapEl = document.getElementById('bentoWrap');
-    const groupA = document.getElementById('bentoGroupA');
-    const groupB = document.getElementById('bentoGroupB');
-    if(!headerEl || !wrapEl || !bentoWrapEl || !groupA || !groupB) return;
+    const marqueeWrapEl = document.getElementById('cardMarqueeWrap');
+    const groupA = document.getElementById('cardGroupA');
+    const groupB = document.getElementById('cardGroupB');
+    if(!headerEl || !wrapEl || !marqueeWrapEl || !groupA || !groupB) return;
 
     const availH = Math.max(80, wrapEl.clientHeight - 4);
-    bentoWrapEl.style.height = availH + 'px';
+    marqueeWrapEl.style.height = availH + 'px';
 
     if(list.length === 0){
       headerEl.innerHTML = `<div class="eyebrow">아직 도착한 감사가 없어요</div>`;
@@ -1109,15 +1102,16 @@ async function renderScreen(root){
 
     const seenKeys = new Set();
     let hasNew = false;
-    list.forEach((e, i)=>{
+    list.forEach(e=>{
       seenKeys.add(e._key);
-      const sizeClass = i === 0 ? 'big' : hashSizeClass(e._key);
       const mineClass = mySubmissions.has(e._key) ? ' mine' : '';
       if(!knownTiles[e._key]){
         hasNew = true;
         const tileA = document.createElement('div');
-        tileA.className = `bento-tile arrive${sizeClass ? ' ' + sizeClass : ''}${mineClass}`;
-        tileA.innerHTML = `<img src="${e.photo}" alt="">`;
+        tileA.className = `news-card arrive${mineClass}`;
+        tileA.innerHTML = `
+          <img src="${e.photo}" alt="">
+          <div class="cap"><div class="who">${esc(e.coupleName)}${e.district ? ` <span class="district">- ${esc(e.district)}</span>` : ''}</div></div>`;
         const tileB = tileA.cloneNode(true);
         groupA.prepend(tileA);
         groupB.prepend(tileB);
@@ -1125,15 +1119,15 @@ async function renderScreen(root){
         [tileA, tileB].forEach(t => t.addEventListener('animationend', ()=> t.classList.remove('arrive'), {once:true}));
       } else {
         knownTiles[e._key].forEach(t=>{
-          t.className = `bento-tile${sizeClass ? ' ' + sizeClass : ''}${mineClass}`;
+          t.className = `news-card${mineClass}`;
         });
       }
     });
 
     if(hasNew){
-      bentoOffset = 0;
-      const trackEl = document.getElementById('bentoTrack');
-      if(trackEl) trackEl.style.transform = 'translateY(0px)';
+      cardOffset = 0;
+      const trackEl = document.getElementById('cardMarqueeTrack');
+      if(trackEl) trackEl.style.transform = 'translateX(0px)';
     }
 
     Object.keys(knownTiles).forEach(k=>{
@@ -1150,26 +1144,26 @@ async function renderScreen(root){
     drawWall(list);
   });
 
-  const BENTO_SPEED = 30;
-  let bentoLastTs = null;
-  function bentoStep(ts){
-    const trackEl = document.getElementById('bentoTrack');
-    const groupEl = document.getElementById('bentoGroupA');
+  const CARD_SPEED = 45;
+  let cardLastTs = null;
+  function cardStep(ts){
+    const trackEl = document.getElementById('cardMarqueeTrack');
+    const groupEl = document.getElementById('cardGroupA');
     if(trackEl && groupEl && groupEl.children.length > 0){
-      if(bentoLastTs !== null){
-        const dt = (ts - bentoLastTs) / 1000;
-        const groupHeight = groupEl.scrollHeight || 1;
-        bentoOffset += BENTO_SPEED * dt;
-        if(bentoOffset >= groupHeight) bentoOffset -= groupHeight;
-        trackEl.style.transform = `translateY(${-bentoOffset}px)`;
+      if(cardLastTs !== null){
+        const dt = (ts - cardLastTs) / 1000;
+        const groupWidth = groupEl.scrollWidth || 1;
+        cardOffset += CARD_SPEED * dt;
+        if(cardOffset >= groupWidth) cardOffset -= groupWidth;
+        trackEl.style.transform = `translateX(${-cardOffset}px)`;
       }
-      bentoLastTs = ts;
+      cardLastTs = ts;
     } else {
-      bentoLastTs = null;
+      cardLastTs = null;
     }
-    marqueeRaf = requestAnimationFrame(bentoStep);
+    marqueeRaf = requestAnimationFrame(cardStep);
   }
-  marqueeRaf = requestAnimationFrame(bentoStep);
+  marqueeRaf = requestAnimationFrame(cardStep);
 }
 
 // ---------- GALLERY VIEW (all rounds combined, instagram-style) ----------
