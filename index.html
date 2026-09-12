@@ -205,14 +205,6 @@
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
   }
 
-  .fab-btn{
-    position:fixed;bottom:20px;right:20px;z-index:40;
-    background:var(--accent);color:#fff;border:none;border-radius:999px;
-    padding:12px 20px;font-size:14px;font-weight:500;cursor:pointer;
-    box-shadow:0 4px 14px rgba(43,42,37,0.25);
-  }
-  .fab-btn:hover{background:var(--accent-dark);}
-
   .order-modal-wrap{display:flex;flex-direction:column;align-items:center;gap:16px;max-height:90vh;overflow-y:auto;}
   .order-print-card{
     background:var(--paper-card);border:1.5px solid var(--ink);border-radius:14px;
@@ -295,23 +287,35 @@
 
   /* screen view */
   .screen-page{
-    max-width:none;padding:0;height:100vh;overflow:hidden;
-    display:flex;flex-direction:column;
+    position:relative;max-width:none;padding:0;height:100vh;overflow:hidden;
   }
-  .screen-page > .topbar{
-    flex:0 0 auto;padding:8px 24px;margin-bottom:0;
+  .fullbg-layer{position:absolute;inset:0;z-index:0;background:var(--ink);}
+  .fullbg-layer img{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    opacity:0;transition:opacity 1.2s ease;
   }
-  .screen-page > .topbar .brand{font-size:15px;}
+  .fullbg-layer img.active{opacity:1;}
+  .fullbg-scrim{
+    position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:linear-gradient(180deg, rgba(20,18,15,.7) 0%, rgba(20,18,15,.2) 24%, rgba(20,18,15,.2) 60%, rgba(20,18,15,.78) 100%);
+  }
+  .fullbg-content{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;}
+
+  .screen-page .topbar{flex:0 0 auto;padding:8px 24px;margin-bottom:0;border-bottom-color:rgba(255,255,255,0.25);}
+  .screen-page .topbar .brand{font-size:15px;color:#fff;}
+  .screen-page .nav-link{color:rgba(255,255,255,0.82);}
+  .screen-page .nav-link:hover{color:#fff;}
+
   .screen-header{
     flex:0 0 auto;padding:16px 48px 4px;text-align:center;
   }
-  .screen-header .eyebrow{color:var(--ink);font-size:16px;}
-  #screenWallHeader.screen-header{padding-top:22px;padding-bottom:14px;}
-  #screenWallHeader.screen-header .eyebrow{font-size:18px;font-weight:600;color:var(--accent-dark);}
-  .screen-header h1{font-size:44px;font-family:'Noto Serif KR',serif;color:var(--ink);}
-  .title-underline{width:52px;height:3px;background:var(--accent);margin:8px auto 0;border-radius:2px;}
+  .screen-header .eyebrow{color:#fff;font-size:16px;}
+  #screenWallHeader.screen-header{padding-top:0;padding-bottom:28px;}
+  #screenWallHeader.screen-header .eyebrow{font-size:20px;font-weight:600;color:#fff;}
+  .screen-header h1{font-size:44px;font-family:'Noto Serif KR',serif;color:#fff;}
+  .title-underline{width:52px;height:3px;background:#fff;margin:8px auto 0;border-radius:2px;opacity:0.8;}
   .scripture{
-    max-width:560px;margin:8px auto 0;text-align:center;color:var(--ink-soft);
+    max-width:560px;margin:8px auto 0;text-align:center;color:rgba(255,255,255,0.88);
     font-size:12px;line-height:1.55;
   }
   .verse-stage{position:relative;min-height:38px;}
@@ -322,8 +326,17 @@
   @media (prefers-reduced-motion: no-preference){
     .verse-stage .verse{transition:opacity .8s ease;}
   }
-  .scripture .vnum{color:var(--motif);font-weight:600;font-size:10px;margin-right:4px;}
-  .scripture .ref{font-size:11px;color:var(--motif);margin-top:4px;display:block;}
+  .scripture .vnum{color:#F0D9B5;font-weight:600;font-size:10px;margin-right:4px;}
+  .scripture .ref{font-size:11px;color:#F0D9B5;margin-top:4px;display:block;}
+  .fullbg-spacer{flex:1 1 auto;min-height:0;}
+  .fab-btn{
+    position:fixed;bottom:20px;right:20px;z-index:5;
+    background:rgba(255,255,255,0.18);color:#fff;border:1px solid rgba(255,255,255,0.5);
+    border-radius:999px;padding:12px 20px;font-size:14px;font-weight:500;cursor:pointer;
+    backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,0.25);
+  }
+  .fab-btn:hover{background:rgba(255,255,255,0.3);}
+
   .screen-top{
     flex:0 0 auto;padding:6px 48px 2px;
   }
@@ -355,33 +368,6 @@
     background:linear-gradient(to right, transparent, var(--line) 15%, var(--line) 85%, transparent);
   }
   .ribbon-divider svg{width:20px;height:20px;color:var(--motif);flex-shrink:0;}
-  .photowall-wrap{
-    flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;
-    padding:2px 16px 6px;overflow:hidden;width:100%;
-  }
-  .story-row-wrap{position:relative;width:100%;overflow:hidden;}
-  .story-track{display:flex;height:100%;align-items:center;will-change:transform;}
-  .story-group{display:flex;gap:22px;padding-right:22px;height:100%;align-items:center;flex-shrink:0;}
-  .story-item{display:flex;flex-direction:column;align-items:center;flex-shrink:0;cursor:pointer;}
-  .story-ring{
-    border-radius:50%;padding:4px;background:var(--line);
-    display:flex;align-items:center;justify-content:center;position:relative;
-  }
-  .story-ring.new{background:linear-gradient(135deg, var(--accent), var(--motif));}
-  .story-ring.mine::after{
-    content:'';position:absolute;bottom:0;right:0;width:18px;height:18px;border-radius:50%;
-    background:var(--accent);border:2px solid var(--paper);
-  }
-  .story-avatar{border-radius:50%;overflow:hidden;background:#fff;border:3px solid var(--paper);}
-  .story-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
-  .story-name{
-    margin-top:8px;font-size:12px;color:var(--ink);text-align:center;max-width:110px;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  }
-  @media (prefers-reduced-motion: no-preference){
-    .story-item.arrive .story-ring{animation:tilepop .5s cubic-bezier(.34,1.56,.64,1);}
-  }
-  @keyframes tilepop{from{opacity:0;transform:scale(.6);}to{opacity:1;transform:scale(1);}}
 
   /* admin */
   .admin-row{
@@ -414,7 +400,6 @@
     .order-step .icon{width:18px;height:18px;margin-bottom:4px;}
     .order-num{width:16px;height:16px;font-size:10px;margin-bottom:4px;}
     .order-print-card{width:280px;}
-    .story-name{font-size:11px;max-width:80px;}
     .screen-page .topbar{padding:4px 16px;}
     .screen-header{padding-left:16px;padding-right:16px;padding-top:4px;padding-bottom:2px;}
     .screen-header h1{font-size:26px;gap:6px;}
@@ -453,6 +438,8 @@ function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } 
 function stopMarquee(){ if(marqueeRaf){ cancelAnimationFrame(marqueeRaf); marqueeRaf=null; } }
 function stopScripture(){ if(scriptureTimer){ clearInterval(scriptureTimer); scriptureTimer=null; } }
 let entriesUnsub = null;
+let bgTimer = null;
+function stopBg(){ if(bgTimer){ clearInterval(bgTimer); bgTimer=null; } }
 function stopEntriesSub(){ if(entriesUnsub){ entriesUnsub(); entriesUnsub=null; } }
 
 function dataUrlToBase64(dataUrl){
@@ -679,6 +666,7 @@ async function render(){
   stopMarquee();
   stopScripture();
   stopEntriesSub();
+  stopBg();
   const view = currentView();
   const root = document.getElementById('app');
   root.style.transition = 'opacity .15s ease';
@@ -1051,23 +1039,20 @@ async function renderScreen(root){
   const submitUrl = location.origin + location.pathname + '#submit';
 
   root.innerHTML = `
-    ${topbar(PROGRAM_TITLE)}
-    <div class="screen-header">
-      <div class="scripture">
-        <div class="verse-stage">
-          ${SCRIPTURE_VERSES.map((v,i)=>`<p class="verse${i===0?' active':''}"><span class="vnum">${v.n}</span>${esc(v.text)}</p>`).join('')}
-        </div>
-        <span class="ref">${esc(SCRIPTURE_REF)}</span>
-      </div>
-    </div>
-    <div id="screenWallHeader" class="screen-header" style="padding-top:6px;"></div>
-    <div class="photowall-wrap" id="wallWrap">
-      <div class="story-row-wrap" id="storyRowWrap">
-        <div class="story-track" id="storyTrack">
-          <div class="story-group" id="storyGroupA"></div>
-          <div class="story-group" id="storyGroupB"></div>
+    <div class="fullbg-layer" id="fullbgLayer"></div>
+    <div class="fullbg-scrim"></div>
+    <div class="fullbg-content">
+      ${topbar(PROGRAM_TITLE)}
+      <div class="screen-header">
+        <div class="scripture">
+          <div class="verse-stage">
+            ${SCRIPTURE_VERSES.map((v,i)=>`<p class="verse${i===0?' active':''}"><span class="vnum">${v.n}</span>${esc(v.text)}</p>`).join('')}
+          </div>
+          <span class="ref">${esc(SCRIPTURE_REF)}</span>
         </div>
       </div>
+      <div class="fullbg-spacer"></div>
+      <div id="screenWallHeader" class="screen-header"></div>
     </div>
     <button class="fab-btn" id="orderStepsFab">진행순서</button>
   `;
@@ -1084,84 +1069,60 @@ async function renderScreen(root){
     }, 4500);
   }
 
-  const knownTiles = {};
-  let cardOffset = 0;
+  let bgOrder = [];
+  let bgIndex = 0;
+
+  function showBg(key){
+    const entry = entryCache[key];
+    const bgLayer = document.getElementById('fullbgLayer');
+    if(!entry || !bgLayer) return;
+    const oldImg = bgLayer.querySelector('img.active');
+    const newImg = document.createElement('img');
+    newImg.src = entry.photo;
+    newImg.alt = '';
+    bgLayer.appendChild(newImg);
+    requestAnimationFrame(()=>{ newImg.classList.add('active'); });
+    if(oldImg){
+      oldImg.classList.remove('active');
+      setTimeout(()=>{ oldImg.remove(); }, 1300);
+    }
+  }
+
+  function restartBgTimer(){
+    stopBg();
+    bgTimer = setInterval(()=>{
+      if(bgOrder.length === 0) return;
+      bgIndex = (bgIndex + 1) % bgOrder.length;
+      showBg(bgOrder[bgIndex]);
+    }, 5000);
+  }
 
   function drawWall(list){
     list = list.slice().sort((a,b)=>b.ts-a.ts); // 최신순: 방금 올라온 사진이 맨 앞
 
     const headerEl = document.getElementById('screenWallHeader');
-    const wrapEl = document.getElementById('wallWrap');
-    const rowWrapEl = document.getElementById('storyRowWrap');
-    const groupA = document.getElementById('storyGroupA');
-    const groupB = document.getElementById('storyGroupB');
-    if(!headerEl || !wrapEl || !rowWrapEl || !groupA || !groupB) return;
-
-    const availH = Math.max(90, wrapEl.clientHeight - 4);
-    rowWrapEl.style.height = availH + 'px';
-    const avatarSize = Math.max(56, Math.min(180, availH - 46));
+    const bgLayer = document.getElementById('fullbgLayer');
+    if(!headerEl || !bgLayer) return;
 
     if(list.length === 0){
       headerEl.innerHTML = `<div class="eyebrow">아직 도착한 감사가 없어요</div>`;
-      groupA.innerHTML = '';
-      groupB.innerHTML = '';
-      Object.keys(knownTiles).forEach(k=>delete knownTiles[k]);
+      bgLayer.querySelectorAll('img').forEach(img=>img.remove());
+      bgOrder = [];
+      stopBg();
       return;
     }
 
     headerEl.innerHTML = `<div class="eyebrow">지금까지 ${list.length}개의 감사가 도착했어요</div>`;
 
-    const seenKeys = new Set();
-    let hasNew = false;
-    list.forEach((e, i)=>{
-      seenKeys.add(e._key);
-      const isNew = i < 3;
-      const isMine = mySubmissions.has(e._key);
-      const ringClass = `story-ring${isNew ? ' new' : ''}${isMine ? ' mine' : ''}`;
-      if(!knownTiles[e._key]){
-        hasNew = true;
-        const tileA = document.createElement('div');
-        tileA.className = 'story-item arrive';
-        tileA.innerHTML = `
-          <div class="${ringClass}">
-            <div class="story-avatar" style="width:${avatarSize}px;height:${avatarSize}px;"><img src="${e.photo}" alt=""></div>
-          </div>
-          <div class="story-name">${esc(e.coupleName)}</div>`;
-        tileA.addEventListener('click', ()=>{
-          const fresh = entryCache[e._key];
-          if(fresh) openModal(fresh);
-        });
-        const tileB = tileA.cloneNode(true);
-        tileB.addEventListener('click', ()=>{
-          const fresh = entryCache[e._key];
-          if(fresh) openModal(fresh);
-        });
-        groupA.prepend(tileA);
-        groupB.prepend(tileB);
-        knownTiles[e._key] = [tileA, tileB];
-        [tileA, tileB].forEach(t => t.addEventListener('animationend', ()=> t.classList.remove('arrive'), {once:true}));
-      } else {
-        knownTiles[e._key].forEach(t=>{
-          const ring = t.querySelector('.story-ring');
-          if(ring) ring.className = ringClass;
-          const avatar = t.querySelector('.story-avatar');
-          if(avatar){ avatar.style.width = avatarSize + 'px'; avatar.style.height = avatarSize + 'px'; }
-        });
-      }
-    });
+    const newOrder = list.map(e=>e._key);
+    const isNewArrival = newOrder[0] !== bgOrder[0];
+    bgOrder = newOrder;
 
-    if(hasNew){
-      cardOffset = 0;
-      const trackEl = document.getElementById('storyTrack');
-      if(trackEl) trackEl.style.transform = 'translateX(0px)';
+    if(isNewArrival || !bgTimer){
+      bgIndex = 0;
+      showBg(bgOrder[0]);
+      restartBgTimer();
     }
-
-    Object.keys(knownTiles).forEach(k=>{
-      if(!seenKeys.has(k)){
-        knownTiles[k].forEach(t=>t.remove());
-        delete knownTiles[k];
-      }
-    });
   }
 
   entriesUnsub = window.fb.subscribeEntries((list)=>{
@@ -1169,27 +1130,6 @@ async function renderScreen(root){
     list.forEach(e=>{ entryCache[e._key] = e; });
     drawWall(list);
   });
-
-  const CARD_SPEED = 40;
-  let cardLastTs = null;
-  function cardStep(ts){
-    const trackEl = document.getElementById('storyTrack');
-    const groupEl = document.getElementById('storyGroupA');
-    if(trackEl && groupEl && groupEl.children.length > 0){
-      if(cardLastTs !== null){
-        const dt = (ts - cardLastTs) / 1000;
-        const groupWidth = groupEl.scrollWidth || 1;
-        cardOffset += CARD_SPEED * dt;
-        if(cardOffset >= groupWidth) cardOffset -= groupWidth;
-        trackEl.style.transform = `translateX(${-cardOffset}px)`;
-      }
-      cardLastTs = ts;
-    } else {
-      cardLastTs = null;
-    }
-    marqueeRaf = requestAnimationFrame(cardStep);
-  }
-  marqueeRaf = requestAnimationFrame(cardStep);
 }
 
 // ---------- GALLERY VIEW (all rounds combined, instagram-style) ----------
