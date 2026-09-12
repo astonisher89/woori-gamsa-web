@@ -14,7 +14,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, collection, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, doc, query, where, orderBy
+    getFirestore, collection, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, doc, getDoc, setDoc, query, where, orderBy
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, signInWithEmailAndPassword, signOut
@@ -70,6 +70,18 @@
     },
     isAdminSignedIn(){
       return !!auth.currentUser;
+    },
+    async getState(){
+      const snap = await getDoc(doc(db, 'settings', 'state'));
+      return snap.exists() ? snap.data() : {};
+    },
+    subscribeState(callback){
+      return onSnapshot(doc(db, 'settings', 'state'), (snap)=>{
+        callback(snap.exists() ? snap.data() : {});
+      });
+    },
+    async updateState(partial){
+      await setDoc(doc(db, 'settings', 'state'), partial, { merge: true });
     }
   };
   window.dispatchEvent(new Event('fbready'));
@@ -322,8 +334,8 @@
   }
   .flow-wrap{
     position:relative;width:100%;height:100%;overflow:hidden;
-    -webkit-mask-image:linear-gradient(to right, transparent, black 14%, black 86%, transparent);
-    mask-image:linear-gradient(to right, transparent, black 14%, black 86%, transparent);
+    -webkit-mask-image:linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+    mask-image:linear-gradient(to right, transparent, black 4%, black 96%, transparent);
   }
   .flow-track{display:flex;height:100%;will-change:transform;}
   .flow-group{display:flex;gap:14px;padding-right:14px;height:100%;flex-shrink:0;}
@@ -394,6 +406,13 @@
   .admin-row .info .msg{font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .stat-line{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
   .stat-pill{background:#fff;border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:13px;color:var(--ink-soft);}
+  .round-picker{display:flex;flex-wrap:wrap;gap:8px;}
+  .round-btn{
+    font-size:14px;padding:9px 16px;border-radius:10px;border:1px solid var(--line);
+    background:#fff;color:var(--ink-soft);cursor:pointer;font-family:inherit;
+  }
+  .round-btn.small{font-size:12px;padding:6px 12px;}
+  .round-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500;}
   .toast{
     position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
     background:var(--ink);color:#fff;padding:11px 20px;border-radius:8px;font-size:14px;
@@ -452,6 +471,8 @@ function stopMarquee(){ if(marqueeRaf){ cancelAnimationFrame(marqueeRaf); marque
 function stopScripture(){ if(scriptureTimer){ clearInterval(scriptureTimer); scriptureTimer=null; } }
 let entriesUnsub = null;
 function stopEntriesSub(){ if(entriesUnsub){ entriesUnsub(); entriesUnsub=null; } }
+let stateUnsub = null;
+function stopStateSub(){ if(stateUnsub){ stateUnsub(); stateUnsub=null; } }
 
 function dataUrlToBase64(dataUrl){
   const idx = dataUrl.indexOf(',');
@@ -677,6 +698,7 @@ async function render(){
   stopMarquee();
   stopScripture();
   stopEntriesSub();
+  stopStateSub();
   const view = currentView();
   const root = document.getElementById('app');
   root.style.transition = 'opacity .15s ease';
@@ -791,11 +813,17 @@ async function renderSubmit(root){
     btn.textContent = '나누는 중...';
 
     const coupleName = `${husbandName}, ${wifeName} 부부`;
+    let round = '1';
+    try{
+      const state = await window.fb.getState();
+      round = state.currentRound || '1';
+    }catch(e){ /* 조회 실패 시 기본값 1타임으로 저장 */ }
     const entry = {
       coupleName,
       husbandName,
       wifeName,
       district,
+      round,
       message,
       photo: currentPhotoDataUrl,
       ts: Date.now(),
@@ -1002,7 +1030,7 @@ async function renderEditForm(root, entry){
     btn.textContent = '수정하는 중...';
 
     const coupleName = `${husbandName}, ${wifeName} 부부`;
-    const updated = { coupleName, husbandName, wifeName, district, message, photo: currentPhotoDataUrl, ts: entry.ts, editCode: entry.editCode };
+    const updated = { coupleName, husbandName, wifeName, district, round: entry.round || '1', message, photo: currentPhotoDataUrl, ts: entry.ts, editCode: entry.editCode };
     try{
       await window.fb.updateEntry(entry._key, updated);
       updated._key = entry._key;
@@ -1145,10 +1173,31 @@ async function renderScreen(root){
     });
   }
 
+  let lastEntries = [];
+  let lastFilterState = {};
+
+  function applyFilter(){
+    const mode = lastFilterState.homeFilterMode || 'all';
+    let filtered = lastEntries;
+    if(mode === 'round'){
+      const r = lastFilterState.homeFilterRound || '1';
+      filtered = lastEntries.filter(e => (e.round || '1') === r);
+    } else if(mode === 'district'){
+      const d = lastFilterState.homeFilterDistrict;
+      filtered = d ? lastEntries.filter(e => e.district === d) : lastEntries;
+    }
+    drawWall(filtered);
+  }
+
   entriesUnsub = window.fb.subscribeEntries((list)=>{
     entryCache = {};
     list.forEach(e=>{ entryCache[e._key] = e; });
-    drawWall(list);
+    lastEntries = list;
+    applyFilter();
+  });
+  stateUnsub = window.fb.subscribeState((s)=>{
+    lastFilterState = s;
+    applyFilter();
   });
 
   // 평소엔 빠르게 흐르고, 새 사진이 도착하면 잠시 느려졌다가 다시 빨라짐
@@ -1186,9 +1235,11 @@ async function renderScreen(root){
   marqueeRaf = requestAnimationFrame(flowStep);
 }
 
+const DISTRICT_OPTIONS = Array.from({length: 12}, (_, i) => `${i+1}교구`);
+const ROUND_OPTIONS = ['1', '2', '3', '4'];
+
 // ---------- GALLERY VIEW (all rounds combined, instagram-style) ----------
 async function renderGallery(root){
-  const DISTRICT_OPTIONS = Array.from({length: 12}, (_, i) => `${i+1}교구`);
   let districtFilter = 'all';
   let lastAll = [];
 
@@ -1337,11 +1388,45 @@ async function renderAdmin(root){
     return;
   }
 
+  let lastAll = [];
+  let stateData = {};
+
   function draw(all){
+    lastAll = all;
     const sorted = all.slice().sort((a,b)=>b.ts-a.ts);
+    const currentRound = stateData.currentRound || '1';
+    const filterMode = stateData.homeFilterMode || 'all';
+    const filterRound = stateData.homeFilterRound || '1';
+    const filterDistrict = stateData.homeFilterDistrict || DISTRICT_OPTIONS[0];
 
     root.innerHTML = `
       ${topbar()}
+      <div class="card" style="margin-bottom:16px;">
+        <h2 style="margin-bottom:12px;">현재 진행 타임</h2>
+        <div class="round-picker">
+          ${ROUND_OPTIONS.map(r=>`<button class="round-btn${currentRound===r?' active':''}" data-round="${r}">${r}타임</button>`).join('')}
+        </div>
+        <div class="hint">지금부터 제출되는 사진에 이 타임이 자동으로 찍혀요.</div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <h2 style="margin-bottom:12px;">홈 화면 노출 필터</h2>
+        <div class="round-picker">
+          <button class="round-btn${filterMode==='all'?' active':''}" data-mode="all">전체 보기</button>
+          <button class="round-btn${filterMode==='round'?' active':''}" data-mode="round">타임별</button>
+          <button class="round-btn${filterMode==='district'?' active':''}" data-mode="district">교구별</button>
+        </div>
+        ${filterMode==='round' ? `
+          <div class="round-picker" style="margin-top:10px;" id="filterRoundPicker">
+            ${ROUND_OPTIONS.map(r=>`<button class="round-btn small${filterRound===r?' active':''}" data-filter-round="${r}">${r}타임</button>`).join('')}
+          </div>` : ''}
+        ${filterMode==='district' ? `
+          <select id="filterDistrictSelect" class="district-select" style="margin-top:10px;">
+            ${DISTRICT_OPTIONS.map(d=>`<option value="${d}"${filterDistrict===d?' selected':''}>${d}</option>`).join('')}
+          </select>` : ''}
+        <div class="hint">홈 화면(프로젝터)에 지금 어떤 사진들을 보여줄지 정해요. 갤러리는 이 설정과 상관없이 항상 전체가 보여요.</div>
+      </div>
+
       <div class="card">
         <h2 style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
           전체 나눔 관리
@@ -1360,7 +1445,7 @@ async function renderAdmin(root){
             <div class="admin-row" data-key="${e._key}">
               <img src="${e.photo}" alt="">
               <div class="info">
-                <div class="who">${esc(e.coupleName)}</div>
+                <div class="who">${esc(e.coupleName)}${e.district ? ` · ${esc(e.district)}` : ''}${e.round ? ` · ${esc(e.round)}타임` : ''}</div>
                 <div class="msg">${esc(e.message)}</div>
               </div>
               <button class="btn-danger" data-del="${e._key}">삭제</button>
@@ -1368,6 +1453,40 @@ async function renderAdmin(root){
         </div>
       </div>
     `;
+
+    root.querySelectorAll('[data-round]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        try{
+          await window.fb.updateState({ currentRound: btn.dataset.round });
+          showToast(`${btn.dataset.round}타임으로 전환했어요.`);
+        }catch(e){ showToast('전환에 실패했어요. 다시 시도해주세요.'); }
+      });
+    });
+
+    root.querySelectorAll('[data-mode]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        try{ await window.fb.updateState({ homeFilterMode: btn.dataset.mode }); }
+        catch(e){ showToast('필터 변경에 실패했어요.'); }
+      });
+    });
+
+    const filterRoundPicker = root.querySelector('#filterRoundPicker');
+    if(filterRoundPicker){
+      filterRoundPicker.querySelectorAll('[data-filter-round]').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          try{ await window.fb.updateState({ homeFilterRound: btn.dataset.filterRound }); }
+          catch(e){ showToast('필터 변경에 실패했어요.'); }
+        });
+      });
+    }
+
+    const filterDistrictSelect = root.querySelector('#filterDistrictSelect');
+    if(filterDistrictSelect){
+      filterDistrictSelect.addEventListener('change', async (ev)=>{
+        try{ await window.fb.updateState({ homeFilterDistrict: ev.target.value }); }
+        catch(e){ showToast('필터 변경에 실패했어요.'); }
+      });
+    }
 
     root.querySelectorAll('[data-del]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
@@ -1414,6 +1533,10 @@ async function renderAdmin(root){
     entryCache = {};
     list.forEach(e=>{ entryCache[e._key] = e; });
     draw(list);
+  });
+  stateUnsub = window.fb.subscribeState((s)=>{
+    stateData = s;
+    draw(lastAll);
   });
 }
 
