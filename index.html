@@ -207,7 +207,7 @@
 
   .order-modal-wrap{display:flex;flex-direction:column;align-items:center;gap:16px;max-height:90vh;overflow-y:auto;}
   .order-print-card{
-    background:var(--paper-card);border:1.5px solid var(--ink);border-radius:14px;
+    position:relative;background:var(--paper-card);border:1.5px solid var(--ink);border-radius:14px;
     width:340px;max-width:100%;padding:20px;
   }
   .order-print-title{
@@ -325,7 +325,7 @@
   .flow-group{display:flex;gap:14px;padding-right:14px;height:100%;flex-shrink:0;}
   .flow-tile{
     position:relative;flex-shrink:0;height:100%;aspect-ratio:1/1;border-radius:14px;overflow:hidden;
-    cursor:pointer;box-shadow:0 2px 10px rgba(43,42,37,0.1);
+    cursor:pointer;box-shadow:0 2px 10px rgba(43,42,37,0.1);will-change:filter,opacity;
   }
   .flow-tile img{width:100%;height:100%;object-fit:cover;display:block;}
   .flow-tile.mine{outline:3px solid var(--accent);outline-offset:-3px;}
@@ -416,6 +416,8 @@
     #screenWallHeader.screen-header{padding-top:8px;padding-bottom:6px;}
     #screenWallHeader.screen-header .eyebrow{font-size:15px;}
     .grid{gap:8px;}
+    .photowall-wrap{padding-right:100px;}
+    .fab-btn{padding:9px 14px;font-size:12px;bottom:10px;right:10px;}
   }
 </style>
 </head>
@@ -1080,7 +1082,7 @@ async function renderScreen(root){
   let flowOffset = 0;
 
   function drawWall(list){
-    list = list.slice().sort((a,b)=>b.ts-a.ts); // 최신순: 방금 올라온 사진이 맨 앞
+    list = list.slice().sort((a,b)=>a.ts-b.ts); // 오래된순: 새 사진이 오른쪽 끝에 자연스럽게 추가됨
 
     const headerEl = document.getElementById('screenWallHeader');
     const groupA = document.getElementById('flowGroupA');
@@ -1116,8 +1118,8 @@ async function renderScreen(root){
           const fresh = entryCache[e._key];
           if(fresh) openModal(fresh);
         });
-        groupA.prepend(tileA);
-        groupB.prepend(tileB);
+        groupA.appendChild(tileA);
+        groupB.appendChild(tileB);
         knownTiles[e._key] = [tileA, tileB];
         [tileA, tileB].forEach(t => t.addEventListener('animationend', ()=> t.classList.remove('arrive'), {once:true}));
       } else {
@@ -1128,9 +1130,6 @@ async function renderScreen(root){
     });
 
     if(hasNew){
-      flowOffset = 0;
-      const trackEl = document.getElementById('flowTrack');
-      if(trackEl) trackEl.style.transform = 'translateX(0px)';
       triggerSlowdown();
     }
 
@@ -1162,9 +1161,10 @@ async function renderScreen(root){
 
   let flowLastTs = null;
   function flowStep(ts){
+    const wrapEl = document.getElementById('flowWrap');
     const trackEl = document.getElementById('flowTrack');
     const groupEl = document.getElementById('flowGroupA');
-    if(trackEl && groupEl && groupEl.children.length > 0){
+    if(trackEl && groupEl && wrapEl && groupEl.children.length > 0){
       if(flowLastTs !== null){
         const dt = (ts - flowLastTs) / 1000;
         if(ts > flowSlowUntil) flowTarget = FLOW_FAST;
@@ -1175,6 +1175,21 @@ async function renderScreen(root){
         trackEl.style.transform = `translateX(${-flowOffset}px)`;
       }
       flowLastTs = ts;
+
+      const wrapRect = wrapEl.getBoundingClientRect();
+      if(wrapRect.width > 0){
+        Object.values(knownTiles).forEach(pair=>{
+          pair.forEach(t=>{
+            const r = t.getBoundingClientRect();
+            const centerX = r.left + r.width / 2 - wrapRect.left;
+            const rel = centerX / wrapRect.width; // 0(왼쪽 끝) ~ 1(오른쪽 끝)
+            const dist = Math.min(1, Math.abs(rel - 0.5) * 2.1); // 0 중앙, 1 이상 가장자리
+            const edge = Math.max(0, dist - 0.25) / 0.75; // 중앙 25%는 완전히 선명
+            t.style.filter = `blur(${(edge * 5).toFixed(1)}px)`;
+            t.style.opacity = (1 - edge * 0.75).toFixed(2);
+          });
+        });
+      }
     } else {
       flowLastTs = null;
     }
@@ -1249,6 +1264,9 @@ function openOrderStepsModal(submitUrl){
   overlay.innerHTML = `
     <div class="order-modal-wrap">
       <div class="order-print-card" id="orderPrintCard">
+        <button class="modal-icon-btn" id="orderCloseBtn" title="닫기">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M6 18L18 6"/></svg>
+        </button>
         <div class="order-print-title">${esc(PROGRAM_TITLE)}</div>
         <div class="order-panel">
           ${ORDER_STEPS.map((s,i)=>`
@@ -1262,14 +1280,9 @@ function openOrderStepsModal(submitUrl){
         </div>
         <div class="order-print-footer">${esc(EVENT_LABEL)}</div>
       </div>
-      <div class="order-modal-actions">
-        <button class="btn btn-secondary" id="orderCloseBtn">닫기</button>
-        <button class="btn btn-primary" id="orderPrintBtn">인쇄하기</button>
-      </div>
     </div>`;
   overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.remove(); });
   overlay.querySelector('#orderCloseBtn').addEventListener('click', ()=> overlay.remove());
-  overlay.querySelector('#orderPrintBtn').addEventListener('click', ()=> window.print());
   document.body.appendChild(overlay);
   try{
     new QRCode(document.getElementById('qrcodeBoxModal'), {
