@@ -1181,7 +1181,13 @@ async function renderScreen(root){
     let filtered = lastEntries;
     if(mode === 'round'){
       const r = lastFilterState.homeFilterRound || '1';
-      filtered = lastEntries.filter(e => (e.round || '1') === r);
+      const includePre = !!lastFilterState.homeFilterIncludePre;
+      filtered = lastEntries.filter(e => {
+        const er = e.round || '1';
+        if(er === r) return true;
+        if(includePre && r !== 'pre' && er === 'pre') return true;
+        return false;
+      });
     } else if(mode === 'district'){
       const d = lastFilterState.homeFilterDistrict;
       filtered = d ? lastEntries.filter(e => e.district === d) : lastEntries;
@@ -1236,7 +1242,13 @@ async function renderScreen(root){
 }
 
 const DISTRICT_OPTIONS = Array.from({length: 12}, (_, i) => `${i+1}교구`);
-const ROUND_OPTIONS = ['1', '2', '3', '4'];
+const ROUND_OPTIONS = [
+  { value: 'pre', label: '사전(TF)' },
+  { value: '1', label: '1타임' },
+  { value: '2', label: '2타임' },
+  { value: '3', label: '3타임' },
+  { value: '4', label: '4타임' }
+];
 
 // ---------- GALLERY VIEW (all rounds combined, instagram-style) ----------
 async function renderGallery(root){
@@ -1398,13 +1410,15 @@ async function renderAdmin(root){
     const filterMode = stateData.homeFilterMode || 'all';
     const filterRound = stateData.homeFilterRound || '1';
     const filterDistrict = stateData.homeFilterDistrict || DISTRICT_OPTIONS[0];
+    const includePre = !!stateData.homeFilterIncludePre;
+    const roundLabel = (v) => (ROUND_OPTIONS.find(r=>r.value===v) || {}).label || v;
 
     root.innerHTML = `
       ${topbar()}
       <div class="card" style="margin-bottom:16px;">
         <h2 style="margin-bottom:12px;">현재 진행 타임</h2>
         <div class="round-picker">
-          ${ROUND_OPTIONS.map(r=>`<button class="round-btn${currentRound===r?' active':''}" data-round="${r}">${r}타임</button>`).join('')}
+          ${ROUND_OPTIONS.map(r=>`<button class="round-btn${currentRound===r.value?' active':''}" data-round="${r.value}">${r.label}</button>`).join('')}
         </div>
         <div class="hint">지금부터 제출되는 사진에 이 타임이 자동으로 찍혀요.</div>
       </div>
@@ -1418,8 +1432,13 @@ async function renderAdmin(root){
         </div>
         ${filterMode==='round' ? `
           <div class="round-picker" style="margin-top:10px;" id="filterRoundPicker">
-            ${ROUND_OPTIONS.map(r=>`<button class="round-btn small${filterRound===r?' active':''}" data-filter-round="${r}">${r}타임</button>`).join('')}
-          </div>` : ''}
+            ${ROUND_OPTIONS.map(r=>`<button class="round-btn small${filterRound===r.value?' active':''}" data-filter-round="${r.value}">${r.label}</button>`).join('')}
+          </div>
+          ${filterRound !== 'pre' ? `
+          <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-soft);cursor:pointer;">
+            <input type="checkbox" id="includePreCheck"${includePre?' checked':''} style="width:16px;height:16px;">
+            사전(TF) 예시 사진도 함께 보여주기
+          </label>` : ''}` : ''}
         ${filterMode==='district' ? `
           <select id="filterDistrictSelect" class="district-select" style="margin-top:10px;">
             ${DISTRICT_OPTIONS.map(d=>`<option value="${d}"${filterDistrict===d?' selected':''}>${d}</option>`).join('')}
@@ -1445,7 +1464,7 @@ async function renderAdmin(root){
             <div class="admin-row" data-key="${e._key}">
               <img src="${e.photo}" alt="">
               <div class="info">
-                <div class="who">${esc(e.coupleName)}${e.district ? ` · ${esc(e.district)}` : ''}${e.round ? ` · ${esc(e.round)}타임` : ''}</div>
+                <div class="who">${esc(e.coupleName)}${e.district ? ` · ${esc(e.district)}` : ''}${e.round ? ` · ${esc(roundLabel(e.round))}` : ''}</div>
                 <div class="msg">${esc(e.message)}</div>
               </div>
               <button class="btn-danger" data-del="${e._key}">삭제</button>
@@ -1458,10 +1477,18 @@ async function renderAdmin(root){
       btn.addEventListener('click', async ()=>{
         try{
           await window.fb.updateState({ currentRound: btn.dataset.round });
-          showToast(`${btn.dataset.round}타임으로 전환했어요.`);
+          showToast(`${roundLabel(btn.dataset.round)}(으)로 전환했어요.`);
         }catch(e){ showToast('전환에 실패했어요. 다시 시도해주세요.'); }
       });
     });
+
+    const includePreCheck = root.querySelector('#includePreCheck');
+    if(includePreCheck){
+      includePreCheck.addEventListener('change', async (ev)=>{
+        try{ await window.fb.updateState({ homeFilterIncludePre: ev.target.checked }); }
+        catch(e){ showToast('설정 변경에 실패했어요.'); }
+      });
+    }
 
     root.querySelectorAll('[data-mode]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
