@@ -320,16 +320,18 @@
     flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;
     padding:2px 16px 6px;overflow:hidden;width:100%;
   }
-  .flow-wrap{position:relative;width:100%;height:100%;overflow:hidden;}
+  .flow-wrap{
+    position:relative;width:100%;height:100%;overflow:hidden;
+    -webkit-mask-image:linear-gradient(to right, transparent, black 14%, black 86%, transparent);
+    mask-image:linear-gradient(to right, transparent, black 14%, black 86%, transparent);
+  }
   .flow-track{display:flex;height:100%;will-change:transform;}
   .flow-group{display:flex;gap:14px;padding-right:14px;height:100%;flex-shrink:0;}
   .flow-tile{
     position:relative;flex-shrink:0;height:100%;aspect-ratio:1/1;border-radius:14px;overflow:hidden;
-    cursor:pointer;box-shadow:0 2px 10px rgba(43,42,37,0.1);will-change:filter,opacity;
+    cursor:pointer;box-shadow:0 2px 10px rgba(43,42,37,0.1);
   }
   .flow-tile img{width:100%;height:100%;object-fit:cover;display:block;}
-  .tile-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
-  .tile-blur{filter:blur(7px);}
   .flow-tile.mine{outline:3px solid var(--accent);outline-offset:-3px;}
   .flow-tile.mine::after{
     content:'내 사진';position:absolute;top:8px;left:8px;background:var(--accent);color:#fff;
@@ -1110,7 +1112,7 @@ async function renderScreen(root){
         hasNew = true;
         const tileA = document.createElement('div');
         tileA.className = `flow-tile arrive${mineClass}`;
-        tileA.innerHTML = `<img class="tile-img tile-sharp" src="${e.photo}" alt=""><img class="tile-img tile-blur" src="${e.photo}" alt="">`;
+        tileA.innerHTML = `<img src="${e.photo}" alt="">`;
         tileA.addEventListener('click', ()=>{
           const fresh = entryCache[e._key];
           if(fresh) openModal(fresh);
@@ -1163,10 +1165,9 @@ async function renderScreen(root){
 
   let flowLastTs = null;
   function flowStep(ts){
-    const wrapEl = document.getElementById('flowWrap');
     const trackEl = document.getElementById('flowTrack');
     const groupEl = document.getElementById('flowGroupA');
-    if(trackEl && groupEl && wrapEl && groupEl.children.length > 0){
+    if(trackEl && groupEl && groupEl.children.length > 0){
       if(flowLastTs !== null){
         const dt = (ts - flowLastTs) / 1000;
         if(ts > flowSlowUntil) flowTarget = FLOW_FAST;
@@ -1177,46 +1178,6 @@ async function renderScreen(root){
         trackEl.style.transform = `translateX(${-flowOffset}px)`;
       }
       flowLastTs = ts;
-
-      const wrapRect = wrapEl.getBoundingClientRect();
-      if(wrapRect.width > 0){
-        const wrapWidth = wrapRect.width;
-        const fadeZone = wrapWidth * 0.3;
-        const edgePoints = [
-          { x: 0, o: 0 },
-          { x: fadeZone, o: 1 },
-          { x: wrapWidth - fadeZone, o: 1 },
-          { x: wrapWidth, o: 0 }
-        ];
-        Object.values(knownTiles).forEach(pair=>{
-          pair.forEach(t=>{
-            const r = t.getBoundingClientRect();
-            const tileLeft = r.left - wrapRect.left;
-            const tileWidth = r.width || 1;
-            const centerX = tileLeft + tileWidth / 2;
-            const rel = centerX / wrapWidth;
-            const dist = Math.min(1, Math.abs(rel - 0.5) * 2.1);
-            const edge = Math.max(0, dist - 0.2) / 0.8;
-            t.style.opacity = (1 - edge * 0.55).toFixed(2);
-
-            const sharpStops = [];
-            const blurStops = [];
-            edgePoints.forEach(p=>{
-              let local = (p.x - tileLeft) / tileWidth;
-              local = Math.max(0, Math.min(1, local));
-              const pct = (local * 100).toFixed(1);
-              sharpStops.push(`rgba(0,0,0,${p.o}) ${pct}%`);
-              blurStops.push(`rgba(0,0,0,${1 - p.o}) ${pct}%`);
-            });
-            const sharpMask = `linear-gradient(to right, ${sharpStops.join(', ')})`;
-            const blurMask = `linear-gradient(to right, ${blurStops.join(', ')})`;
-            const sharpImg = t.querySelector('.tile-sharp');
-            const blurImg = t.querySelector('.tile-blur');
-            if(sharpImg){ sharpImg.style.maskImage = sharpMask; sharpImg.style.webkitMaskImage = sharpMask; }
-            if(blurImg){ blurImg.style.maskImage = blurMask; blurImg.style.webkitMaskImage = blurMask; }
-          });
-        });
-      }
     } else {
       flowLastTs = null;
     }
