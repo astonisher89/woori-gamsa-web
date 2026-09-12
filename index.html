@@ -579,13 +579,15 @@ function openCropModal(file, onCropped){
     }
     overlay.querySelector('#cropCancelBtn').addEventListener('click', closeOverlay);
     overlay.querySelector('#cropDoneBtn').addEventListener('click', ()=>{
-      const canvas = cropper.getCroppedCanvas({ width: 1200, height: 1200 });
-      let quality = 0.85;
-      let dataUrl = canvas.toDataURL('image/jpeg', quality);
+      const canvas = cropper.getCroppedCanvas({ width: 1400, height: 1400 });
+      const supportsWebp = canvas.toDataURL('image/webp', 0.5).indexOf('data:image/webp') === 0;
+      const mime = supportsWebp ? 'image/webp' : 'image/jpeg';
+      let quality = 0.9;
+      let dataUrl = canvas.toDataURL(mime, quality);
       // Firestore 문서 1MB 한도 보호: 너무 크면 품질을 자동으로 낮춤
-      while(dataUrl.length * 0.75 > 700 * 1024 && quality > 0.5){
+      while(dataUrl.length * 0.75 > 750 * 1024 && quality > 0.5){
         quality -= 0.1;
-        dataUrl = canvas.toDataURL('image/jpeg', quality);
+        dataUrl = canvas.toDataURL(mime, quality);
       }
       closeOverlay();
       onCropped(dataUrl);
