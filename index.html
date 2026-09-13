@@ -1162,11 +1162,13 @@ async function renderScreen(root){
 
     const seenKeys = new Set();
     let hasNew = false;
+    let jumpToWidth = null;
     list.forEach(e=>{
       seenKeys.add(e._key);
       const mineClass = mySubmissions.has(e._key) ? ' mine' : '';
       if(!knownTiles[e._key]){
         hasNew = true;
+        if(jumpToWidth === null) jumpToWidth = groupA.scrollWidth;
         const tileA = document.createElement('div');
         tileA.className = `flow-tile arrive${mineClass}`;
         tileA.innerHTML = `<img src="${e.photo}" alt="">`;
@@ -1192,6 +1194,15 @@ async function renderScreen(root){
 
     if(hasNew){
       triggerSlowdown();
+      const wrapEl = document.getElementById('flowWrap');
+      const viewportWidth = wrapEl ? wrapEl.clientWidth : 0;
+      const nextOffset = Math.max(0, jumpToWidth - viewportWidth * 0.15);
+      // 새 사진이 아주 곧 등장하도록, 이미 지나간 부분만 건너뛰고 앞당김 (뒤로 되감지는 않음)
+      if(nextOffset > flowOffset){
+        flowOffset = nextOffset;
+        const trackEl = document.getElementById('flowTrack');
+        if(trackEl) trackEl.style.transform = `translateX(${-flowOffset}px)`;
+      }
     }
 
     Object.keys(knownTiles).forEach(k=>{
