@@ -841,7 +841,7 @@ async function renderSubmit(root){
     btn.disabled = true;
     btn.textContent = '나누는 중...';
 
-    const coupleName = `${husbandName}, ${wifeName} 부부`;
+    const coupleName = `${husbandName} 💙 ${wifeName}`;
     let round = '1';
     try{
       const state = await window.fb.getState();
@@ -1058,7 +1058,7 @@ async function renderEditForm(root, entry){
     btn.disabled = true;
     btn.textContent = '수정하는 중...';
 
-    const coupleName = `${husbandName}, ${wifeName} 부부`;
+    const coupleName = `${husbandName} 💙 ${wifeName}`;
     const updated = { coupleName, husbandName, wifeName, district, round: entry.round || '1', message, photo: currentPhotoDataUrl, ts: entry.ts, editCode: entry.editCode };
     try{
       await window.fb.updateEntry(entry._key, updated);
@@ -1196,7 +1196,7 @@ async function renderScreen(root){
       triggerSlowdown();
       const wrapEl = document.getElementById('flowWrap');
       const viewportWidth = wrapEl ? wrapEl.clientWidth : 0;
-      const nextOffset = Math.max(0, jumpToWidth - viewportWidth * 0.15);
+      const nextOffset = Math.max(0, jumpToWidth - viewportWidth * 0.9);
       // 새 사진이 아주 곧 등장하도록, 이미 지나간 부분만 건너뛰고 앞당김 (뒤로 되감지는 않음)
       if(nextOffset > flowOffset){
         flowOffset = nextOffset;
