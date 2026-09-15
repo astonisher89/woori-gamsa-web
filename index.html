@@ -19,6 +19,9 @@
   import {
     getAuth, signInWithEmailAndPassword, signOut
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import {
+    getStorage, ref, uploadString, getDownloadURL, deleteObject
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
   // ⬇︎ Firebase 콘솔 > 프로젝트 설정 > 내 앱 > SDK 설정에서 복사한 값을 그대로 붙여넣어 주세요.
   const firebaseConfig = {
@@ -33,6 +36,7 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
+  const storage = getStorage(app);
 
   window.fb = {
     async addEntry(data){
@@ -60,6 +64,16 @@
     },
     async updateEntry(id, data){
       await updateDoc(doc(db, 'entries', id), data);
+    },
+    async uploadPhoto(dataUrl, path){
+      const storageRef = ref(storage, path);
+      await uploadString(storageRef, dataUrl, 'data_url', { cacheControl: 'public, max-age=31536000, immutable' });
+      return await getDownloadURL(storageRef);
+    },
+    async deletePhoto(path){
+      if(!path) return;
+      try{ await deleteObject(ref(storage, path)); }
+      catch(e){ /* 이미 없거나 실패해도 무시 (엔트리 삭제 자체는 계속 진행) */ }
     },
     async adminLogin(email, password){
       const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -215,7 +229,10 @@
   }
   .tile img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}
   .tile .tile-meta{padding:10px 12px;}
-  .tile .tile-meta .who{font-size:13px;font-weight:600;color:var(--ink);}
+  .tile .tile-meta .who{
+    font-size:13px;font-weight:600;color:var(--ink);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;
+  }
   .tile .tile-meta .who .district{font-weight:500;color:var(--accent-dark);}
   .tile .tile-meta .preview{
     font-size:11px;color:var(--ink-soft);margin-top:4px;line-height:1.4;
@@ -606,14 +623,14 @@ function openCropModal(file, onCropped){
     }
     overlay.querySelector('#cropCancelBtn').addEventListener('click', closeOverlay);
     overlay.querySelector('#cropDoneBtn').addEventListener('click', ()=>{
-      const canvas = cropper.getCroppedCanvas({ width: 1400, height: 1400 });
+      const canvas = cropper.getCroppedCanvas({ width: 1800, height: 1800 });
       const supportsWebp = canvas.toDataURL('image/webp', 0.5).indexOf('data:image/webp') === 0;
       const mime = supportsWebp ? 'image/webp' : 'image/jpeg';
-      let quality = 0.9;
+      let quality = 0.95;
       let dataUrl = canvas.toDataURL(mime, quality);
-      // Firestore 문서 1MB 한도 보호: 너무 크면 품질을 자동으로 낮춤
-      while(dataUrl.length * 0.75 > 750 * 1024 && quality > 0.5){
-        quality -= 0.1;
+      // 넉넉한 안전장치: 사진이 극단적으로 큰 경우에만 살짝 낮춤 (Storage는 용량 제약이 거의 없음)
+      while(dataUrl.length * 0.75 > 6 * 1024 * 1024 && quality > 0.8){
+        quality -= 0.05;
         dataUrl = canvas.toDataURL(mime, quality);
       }
       closeOverlay();
@@ -672,6 +689,7 @@ async function drawPersonalCard(entry){
     ctx.fillStyle = '#F6F1E7';
     ctx.fillRect(0,0,W,H);
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       const pad = 60;
       const photoSize = W - pad*2;
@@ -847,6 +865,21 @@ async function renderSubmit(root){
       const state = await window.fb.getState();
       round = state.currentRound || '1';
     }catch(e){ /* 조회 실패 시 기본값 1타임으로 저장 */ }
+
+    btn.textContent = '사진 업로드 중...';
+    const photoPath = `photos/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.jpg`;
+    let photoUrl;
+    try{
+      photoUrl = await window.fb.uploadPhoto(currentPhotoDataUrl, photoPath);
+    }catch(e){
+      errBox.textContent = '사진 업로드에 실패했어요. 다시 시도해주세요.';
+      errBox.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '감사 나누기';
+      return;
+    }
+    btn.textContent = '나누는 중...';
+
     const entry = {
       coupleName,
       husbandName,
@@ -854,7 +887,8 @@ async function renderSubmit(root){
       district,
       round,
       message,
-      photo: currentPhotoDataUrl,
+      photo: photoUrl,
+      photoPath,
       ts: Date.now(),
       editCode: String(Math.floor(1000 + Math.random() * 9000))
     };
@@ -1006,6 +1040,7 @@ async function renderEditForm(root, entry){
     if(!confirm('이 나눔을 삭제할까요? 되돌릴 수 없어요.')) return;
     try{
       await window.fb.deleteEntry(entry._key);
+      if(entry.photoPath) window.fb.deletePhoto(entry.photoPath);
       delete entryCache[entry._key];
       showToast('삭제했어요.');
       goTo('gallery');
@@ -1059,7 +1094,27 @@ async function renderEditForm(root, entry){
     btn.textContent = '수정하는 중...';
 
     const coupleName = `${husbandName} 💙 ${wifeName}`;
-    const updated = { coupleName, husbandName, wifeName, district, round: entry.round || '1', message, photo: currentPhotoDataUrl, ts: entry.ts, editCode: entry.editCode };
+    let photoUrl = entry.photo;
+    let photoPath = entry.photoPath;
+    if(currentPhotoDataUrl && currentPhotoDataUrl.startsWith('data:')){
+      // 사진을 새로 고른 경우에만 업로드
+      btn.textContent = '사진 업로드 중...';
+      const newPath = `photos/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.jpg`;
+      try{
+        photoUrl = await window.fb.uploadPhoto(currentPhotoDataUrl, newPath);
+        const oldPath = entry.photoPath;
+        photoPath = newPath;
+        if(oldPath) window.fb.deletePhoto(oldPath);
+      }catch(e){
+        errBox.textContent = '사진 업로드에 실패했어요. 다시 시도해주세요.';
+        errBox.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '수정 완료';
+        return;
+      }
+      btn.textContent = '수정하는 중...';
+    }
+    const updated = { coupleName, husbandName, wifeName, district, round: entry.round || '1', message, photo: photoUrl, photoPath, ts: entry.ts, editCode: entry.editCode };
     try{
       await window.fb.updateEntry(entry._key, updated);
       updated._key = entry._key;
@@ -1498,6 +1553,9 @@ async function renderAdmin(root){
           <button class="btn btn-secondary" id="downloadPhotosBtn">사진만 다운로드</button>
           <button class="btn btn-secondary" id="downloadCardsBtn">카드 다운로드</button>
         </div>
+        <div class="btn-row" style="margin-bottom:18px;">
+          <button class="btn btn-secondary" id="migratePhotosBtn">예전 사진 Storage로 이전</button>
+        </div>
         <div id="entryList">
           ${sorted.length === 0 ? '<div class="empty-state"><h3>아직 나눔이 없어요</h3></div>' :
             sorted.map(e => `
@@ -1560,7 +1618,9 @@ async function renderAdmin(root){
         const key = btn.dataset.del;
         if(!confirm('이 나눔을 삭제할까요? 되돌릴 수 없어요.')) return;
         try{
+          const target = entryCache[key];
           await window.fb.deleteEntry(key);
+          if(target && target.photoPath) window.fb.deletePhoto(target.photoPath);
           delete entryCache[key];
           showToast('삭제했어요.');
         }catch(e){
@@ -1587,6 +1647,29 @@ async function renderAdmin(root){
       await downloadAllCards();
       cardsBtn.disabled = false;
       cardsBtn.textContent = orig;
+    });
+
+    const migrateBtn = root.querySelector('#migratePhotosBtn');
+    if(migrateBtn) migrateBtn.addEventListener('click', async ()=>{
+      const oldOnes = lastAll.filter(e => e.photo && e.photo.startsWith('data:'));
+      if(oldOnes.length === 0){ showToast('이전할 예전 사진이 없어요. 이미 다 옮겨졌어요.'); return; }
+      if(!confirm(`${oldOnes.length}개의 예전 사진을 Storage로 옮길까요?\n사진 개수에 따라 시간이 좀 걸릴 수 있고, 이전 중엔 창을 닫지 말아주세요.`)) return;
+      migrateBtn.disabled = true;
+      let success = 0, fail = 0;
+      for(const e of oldOnes){
+        migrateBtn.textContent = `이전 중... (${success + fail}/${oldOnes.length})`;
+        try{
+          const path = `photos/migrated-${e._key}-${Date.now()}.jpg`;
+          const url = await window.fb.uploadPhoto(e.photo, path);
+          await window.fb.updateEntry(e._key, { photo: url, photoPath: path });
+          success++;
+        }catch(err){
+          fail++;
+        }
+      }
+      migrateBtn.disabled = false;
+      migrateBtn.textContent = '예전 사진 Storage로 이전';
+      showToast(`이전 완료: 성공 ${success}개${fail > 0 ? `, 실패 ${fail}개` : ''}`);
     });
 
     const logoutBtn = root.querySelector('#logoutBtn');
