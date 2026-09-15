@@ -1394,6 +1394,14 @@ async function renderGallery(root){
         if(e) openModal(e);
       });
     });
+    root.querySelectorAll('.tile-meta .who').forEach(el=>{
+      el.style.fontSize = '';
+      let size = 13;
+      while(el.scrollWidth > el.clientWidth && size > 9){
+        size -= 0.5;
+        el.style.fontSize = size + 'px';
+      }
+    });
   }
   entriesUnsub = window.fb.subscribeEntries((list)=>{
     entryCache = {};
